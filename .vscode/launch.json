@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "build and debug for c++",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "/home/hylee/MQSim-E/MQSim-E/MQSim",
+        "args": ["-i", "ssd_config/ssd_16_16_f1_nopre_sh.xml", "-w", "workload_settings/workload_for_synthetic.xml"],
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ],
+        //"preLaunchTask": "build for C/C++"
+      },
+      {
+        "name": "C/C++ Runner: Debug Session",
+        "type": "cppdbg",
+        "request": "launch",
+        "args": [],
+        "stopAtEntry": false,
+        "externalConsole": false,
+        "cwd": "/home/hylee/MQSim_CXL_Linux",
+        "program": "/home/hylee/MQSim_CXL_Linux/build/Debug/outDebug",
+        "MIMode": "gdb",
+        "miDebuggerPath": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ]
+      }
+    ]
+  }
