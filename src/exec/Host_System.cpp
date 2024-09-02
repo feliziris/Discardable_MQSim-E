@@ -52,7 +52,7 @@ Host_System::Host_System(Host_Parameter_Set* parameters, bool preconditioning_re
 					Utils::Logical_Address_Partitioning_Unit::Start_lha_available_to_flow(flow_id),
 					Utils::Logical_Address_Partitioning_Unit::End_lha_available_to_flow(flow_id),
 					((double)flow_param->Working_Set_Percentage / 100.0), FLOW_ID_TO_Q_ID(flow_id), nvme_sq_size, nvme_cq_size,
-					flow_param->Priority_Class, flow_param->Read_Percentage / double(100.0), flow_param->Address_Distribution, flow_param->Percentage_of_Hot_Region / double(100.0),
+					flow_param->Priority_Class, flow_param->Read_Percentage / double(100.0), flow_param->TRIM_Percentage / double(100.0),flow_param->Address_Distribution, flow_param->Percentage_of_Hot_Region / double(100.0),
 					flow_param->Request_Size_Distribution, flow_param->Average_Request_Size, flow_param->Variance_Request_Size,
 					flow_param->Synthetic_Generator_Type, (flow_param->Bandwidth == 0? 0 :NanoSecondCoeff / ((flow_param->Bandwidth / SECTOR_SIZE_IN_BYTE) / flow_param->Average_Request_Size)),
 					flow_param->Average_No_of_Reqs_in_Queue, flow_param->Generated_Aligned_Addresses, flow_param->Address_Alignment_Unit,

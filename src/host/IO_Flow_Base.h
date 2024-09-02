@@ -110,17 +110,17 @@ namespace Host_Components
 		unsigned int STAT_generated_request_count_before_GC; //DATE22
 		unsigned int STAT_generated_request_count_before_GC_r; //DATE22
 		unsigned int STAT_generated_request_count_before_GC_w; //DATE22
-
-		unsigned int STAT_generated_request_count, STAT_generated_read_request_count, STAT_generated_write_request_count;
+		// hylee) add trim stat info
+		unsigned int STAT_generated_request_count, STAT_generated_read_request_count, STAT_generated_write_request_count, STAT_generated_trim_request_count;
 		unsigned int STAT_ignored_request_count;
-		unsigned int STAT_serviced_request_count, STAT_serviced_read_request_count, STAT_serviced_write_request_count;
-		sim_time_type STAT_sum_device_response_time, STAT_sum_device_response_time_read, STAT_sum_device_response_time_write;
-		sim_time_type STAT_min_device_response_time, STAT_min_device_response_time_read, STAT_min_device_response_time_write;
-		sim_time_type STAT_max_device_response_time, STAT_max_device_response_time_read, STAT_max_device_response_time_write;
-		sim_time_type STAT_sum_request_delay, STAT_sum_request_delay_read, STAT_sum_request_delay_write;
-		sim_time_type STAT_min_request_delay, STAT_min_request_delay_read, STAT_min_request_delay_write;
-		sim_time_type STAT_max_request_delay, STAT_max_request_delay_read, STAT_max_request_delay_write;
-		sim_time_type STAT_transferred_bytes_total, STAT_transferred_bytes_read, STAT_transferred_bytes_write;
+		unsigned int STAT_serviced_request_count, STAT_serviced_read_request_count, STAT_serviced_write_request_count, STAT_serviced_trim_request_count;
+		sim_time_type STAT_sum_device_response_time, STAT_sum_device_response_time_read, STAT_sum_device_response_time_write, STAT_sum_device_response_time_trim;
+		sim_time_type STAT_min_device_response_time, STAT_min_device_response_time_read, STAT_min_device_response_time_write, STAT_min_device_response_time_trim;
+		sim_time_type STAT_max_device_response_time, STAT_max_device_response_time_read, STAT_max_device_response_time_write, STAT_max_device_response_time_trim;
+		sim_time_type STAT_sum_request_delay, STAT_sum_request_delay_read, STAT_sum_request_delay_write, STAT_sum_request_delay_trim;
+		sim_time_type STAT_min_request_delay, STAT_min_request_delay_read, STAT_min_request_delay_write, STAT_min_request_delay_trim;
+		sim_time_type STAT_max_request_delay, STAT_max_request_delay_read, STAT_max_request_delay_write, STAT_max_request_delay_trim;
+		sim_time_type STAT_transferred_bytes_total, STAT_transferred_bytes_read, STAT_transferred_bytes_write, STAT_transferred_bytes_trim;
 		int progress;
 		int next_progress_step = 0;
 

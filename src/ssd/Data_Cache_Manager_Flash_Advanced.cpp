@@ -260,7 +260,7 @@ namespace SSD_Components
 				}
 			}
 		}
-		else//This is a write request
+		else if (user_request->Type == UserRequestType::WRITE)//This is a write request
 		{
 			switch (caching_mode_per_input_stream[user_request->Stream_id])
 			{
@@ -284,6 +284,25 @@ namespace SSD_Components
 				}
 			}
 		}
+#ifdef HYLEE
+		else // This is a trim request
+		{
+			switch (caching_mode_per_input_stream[user_request->Stream_id])
+			{
+				case Caching_Mode::TURNED_OFF:
+				case Caching_Mode::READ_CACHE:
+					static_cast<FTL*>(nvm_firmware)->Address_Mapping_Unit->Translate_lpa_to_ppa_and_dispatch(user_request->Transaction_list, user_request, back_pressure_buffer_depth);
+					return;
+				case Caching_Mode::WRITE_CACHE://The data cache manger unit performs like a destage buffer
+				case Caching_Mode::WRITE_READ_CACHE:
+				{
+					// std::cout << "nothing to do in process_new_user_request" << std::endl;
+					// static_cast<FTL*>(nvm_firmware)->Address_Mapping_Unit->Translate_lpa_to_ppa_and_dispatch(user_request->Transaction_list, user_request, back_pressure_buffer_depth);
+					// return;
+				}
+			}
+		}
+#endif
 	}
 
 	// tr's movement: Fill per_stream_cache first with trs in user_request->Transaction_list. Then if expired (bloom filter), move user_request->Transaction_list ----> writeback_transactions

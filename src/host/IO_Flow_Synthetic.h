@@ -14,7 +14,7 @@ namespace Host_Components
 	public:
 		IO_Flow_Synthetic(const sim_object_id_type& name, uint16_t flow_id, LHA_type start_lsa_on_device, LHA_type end_lsa_on_device, double working_set_ratio, uint16_t io_queue_id,
 			uint16_t nvme_submission_queue_size, uint16_t nvme_completion_queue_size, IO_Flow_Priority_Class priority_class,
-			double read_ratio, Utils::Address_Distribution_Type address_distribution, double hot_address_ratio,
+			double read_ratio, double trim_ratio, Utils::Address_Distribution_Type address_distribution, double hot_address_ratio,
 			Utils::Request_Size_Distribution_Type request_size_distribution, unsigned int average_request_size, unsigned int variance_request_size,
 			Utils::Request_Generator_Type generator_type, sim_time_type Average_inter_arrival_time_nano_sec, unsigned int average_number_of_enqueued_requests,
 			bool generate_aligned_addresses, unsigned int alignment_value,
@@ -31,6 +31,7 @@ namespace Host_Components
 			page_status_type(*Find_NVM_subunit_access_bitmap)(LHA_type lha));
 	private:
 		double read_ratio;
+		double trim_ratio; // hylee
 		double working_set_ratio;
 		Utils::RandomGenerator* random_request_type_generator;
 		int random_request_type_generator_seed;

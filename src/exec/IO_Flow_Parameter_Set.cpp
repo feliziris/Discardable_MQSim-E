@@ -341,6 +341,9 @@ void IO_Flow_Parameter_Set_Synthetic::XML_deserialize(rapidxml::xml_node<> *node
 			} else if (strcmp(param->name(), "Read_Percentage") == 0) {
 				std::string val = param->value();
 				Read_Percentage = std::stoi(val);
+			} else if (strcmp(param->name(), "TRIM_Percentage") == 0) { // hylee
+				std::string val = param->value();
+				TRIM_Percentage = std::stoi(val);
 			} else if (strcmp(param->name(), "Address_Distribution") == 0) {
 				std::string val = param->value();
 				std::transform(val.begin(), val.end(), val.begin(), ::toupper);

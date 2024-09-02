@@ -686,14 +686,16 @@ namespace SSD_Components
 				Stats::total_readTR_CMT_queries++;
 				Stats::readTR_CMT_hits_per_stream[stream_id]++;
 				Stats::readTR_CMT_hits++;
-			} else {
+			} else if (transaction->Type == Transaction_Type::WRITE) {
 				//This is a write transaction
 				Stats::total_writeTR_CMT_queries++;
 				Stats::total_writeTR_CMT_queries_per_stream[stream_id]++;
 				Stats::writeTR_CMT_hits++;
 				Stats::writeTR_CMT_hits_per_stream[stream_id]++;
+			} else { // hylee) this is a trim trs.
+				// need to update for stats info of trim
 			}
-			//
+
 			if (translate_lpa_to_ppa(stream_id, transaction)) {
 				return true;
 			} else {
@@ -762,7 +764,7 @@ namespace SSD_Components
 			transaction->Physical_address_determined = true;
 			
 			return true;
-		} else {//This is a write transaction	
+		} else if (transaction->Type == Transaction_Type::WRITE){//This is a write transaction	
 				
 			allocate_plane_for_user_write((NVM_Transaction_Flash_WR*)transaction);
 #ifndef EXECUTION_CONTROL 
@@ -780,6 +782,33 @@ namespace SSD_Components
 			
 			return true;
 		}
+#ifdef HYLEE
+		else { // hylee) this is a trim trs
+			if (ppa == NO_PPA) {
+				PRINT_ERROR("TRIM can't be serviced for ppa that does not exists")
+			} else {
+				NVM::FlashMemory::Physical_Page_Address addr;
+				AddressMappingDomain* domain = domains[streamID];
+				transaction->PPA = ppa;
+
+				Convert_ppa_to_address(transaction->PPA, transaction->Address);
+				addr = transaction->Address;
+
+				std::cout << "[GC DEBUG] invalidate blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
+				block_manager->Invalidate_subpage_in_block(streamID, addr);
+
+				page_status_type before_invalid = domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA);
+
+				domain->Update_mapping_info(ideal_mapping_table, transaction->Stream_id, transaction->LPA, transaction->PPA,
+					((NVM_Transaction_Flash_TR*)transaction)->write_sectors_bitmap & domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA));
+
+				page_status_type after_invalid = domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA);
+				std::cout << "before invalidation: " << std::hex << before_invalid << "  after invalidation: " << std::hex << after_invalid << std::endl;
+
+				(user_Alloc_count[((NVM_Transaction_Flash_TR*)transaction)->Stream_id])--;
+			}
+		}
+#endif
 	}
 	
 	void Address_Mapping_Unit_Page_Level::Allocate_address_for_preconditioning(const stream_id_type stream_id, std::map<LPA_type, page_status_type>& lpa_list, std::vector<double>& steady_state_distribution)

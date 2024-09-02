@@ -11,6 +11,7 @@
 #include "SSD_Defs.h"
 #include "NVM_Transaction_Flash_RD.h"
 #include "NVM_Transaction_Flash_WR.h"
+#include "NVM_Transaction_Flash_TR.h"
 
 namespace SSD_Components
 {

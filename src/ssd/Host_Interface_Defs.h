@@ -9,6 +9,7 @@ enum class HostInterface_Types { SATA, NVME };
 #define NVME_FLUSH_OPCODE 0x0000
 #define NVME_WRITE_OPCODE 0x0001
 #define NVME_READ_OPCODE 0x0002
+#define NVME_TRIM_OPCODE 0x0003 // hylee) add TRIM opcode
 
 #define SATA_WRITE_OPCODE 0x0001
 #define SATA_READ_OPCODE 0x0002

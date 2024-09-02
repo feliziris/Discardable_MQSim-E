@@ -14,7 +14,7 @@ namespace Host_Components
 	IO_Flow_Synthetic::IO_Flow_Synthetic(const sim_object_id_type& name, uint16_t flow_id,
 		LHA_type start_lsa_on_device, LHA_type end_lsa_on_device, double working_set_ratio, uint16_t io_queue_id,
 		uint16_t nvme_submission_queue_size, uint16_t nvme_completion_queue_size, IO_Flow_Priority_Class priority_class,
-		double read_ratio, Utils::Address_Distribution_Type address_distribution, double hot_region_ratio,
+		double read_ratio, double trim_ratio, Utils::Address_Distribution_Type address_distribution, double hot_region_ratio,
 		Utils::Request_Size_Distribution_Type request_size_distribution, unsigned int average_request_size, unsigned int variance_request_size,
 		Utils::Request_Generator_Type generator_type, sim_time_type Average_inter_arrival_time_nano_sec, unsigned int average_number_of_enqueued_requests,
 		bool generate_aligned_addresses, unsigned int alignment_value,
@@ -27,10 +27,19 @@ namespace Host_Components
 		generator_type(generator_type), Average_inter_arrival_time_nano_sec(Average_inter_arrival_time_nano_sec), average_number_of_enqueued_requests(average_number_of_enqueued_requests),
 		seed(seed), generate_aligned_addresses(generate_aligned_addresses), alignment_value(alignment_value)
 	{
+		// hylee
+		// ratio check - ratio sum shouldn't be over 100
+		if ((read_ratio + trim_ratio) > 100)
+			PRINT_ERROR("The sum of read ratio, trim_ratio, write_ratio shouldn't be over 100");
+
 		//If read ratio is 0, then we change its value to a negative one so that in request generation we never generate a read request
 		if (read_ratio == 0.0) {
 			read_ratio = -1.0;
 		}
+		if (trim_ratio == 0.0) { // hylee
+			trim_ratio == -1.0;
+		}
+
 		random_request_type_generator_seed = seed++;
 		random_request_type_generator = new Utils::RandomGenerator(random_request_type_generator_seed);
 		random_address_generator_seed = seed++;
@@ -81,20 +90,22 @@ namespace Host_Components
 		} else if (STAT_generated_request_count >= total_requests_to_be_generated) {
 			return NULL;
 		}
-		if (STAT_generated_request_count == 436778)
-			std::cout << "gc" << std::endl;
-		// if (GC_on_for_debug)
-		// 	std::cout << "check: " << STAT_generated_request_count << std::endl;
+
+		if (GC_on_for_debug)
+			std::cout << "check: " << STAT_generated_request_count << std::endl;
 
 		Host_IO_Request* request = new Host_IO_Request;
 		if (random_request_type_generator->Uniform(0, 1) <= read_ratio) {
 			request->Type = Host_IO_Request_Type::READ;
 			STAT_generated_read_request_count++;
+		// } else if ((STAT_generated_write_request_count > 0) && (random_request_type_generator->Uniform(0, 1) <= trim_ratio)) { // hylee
+		// 	request->Type = Host_IO_Request_Type::TRIM;
+		// 	STAT_generated_trim_request_count++;
 		} else {
 			request->Type = Host_IO_Request_Type::WRITE;
 			STAT_generated_write_request_count++;
 		}
-
+		
 		switch (request_size_distribution) {
 			case Utils::Request_Size_Distribution_Type::FIXED:
 				request->LBA_count = average_request_size;
@@ -160,7 +171,7 @@ namespace Host_Components
 			default:
 				PRINT_ERROR("Unknown address distribution type!\n")
 		}
-
+		
 		if (generate_aligned_addresses) {
 			request->Start_LBA -= request->Start_LBA % alignment_value;
 		}

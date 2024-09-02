@@ -257,6 +257,12 @@ namespace SSD_Components
 		host_interface->Send_read_message_to_host((sqe->PRP_entry_2 << 31) | sqe->PRP_entry_1, request->Size_in_byte);
 	}
 
+	void Request_Fetch_Unit_SATA::Fetch_trim_cmd(User_Request* request)
+	{
+		//// hylee
+		//// empty
+	}
+
 	void Request_Fetch_Unit_SATA::Send_completion_queue_element(User_Request* request, uint16_t sq_head_value)
 	{
 		Host_Interface_SATA* hi = (Host_Interface_SATA*)host_interface;

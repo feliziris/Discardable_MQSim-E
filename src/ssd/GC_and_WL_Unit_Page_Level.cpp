@@ -595,7 +595,7 @@ namespace SSD_Components
 				
 				for (flash_block_ID_type block_id = 0; block_id < block_no_per_plane; block_id++) {
 					cur_valid_subpage_count = get_valid_subpage_count(block_id);
-					//std::cout << "[DEBUG GC] blk id:"<<block_id<<", Valid subpg_cnt: " << cur_valid_subpage_count << ", Write idx: " << pbke->Blocks[block_id].Current_page_write_index << std::endl;
+					std::cout << "[DEBUG GC] blk id:"<<block_id<<", Valid subpg_cnt: " << cur_valid_subpage_count << ", Write idx: " << pbke->Blocks[block_id].Current_page_write_index << std::endl; // hylee
 
 					// js question : gc victim 선정할 때 stream 관련 확인은 없음
 					if ((cur_valid_subpage_count < min_valid_page_count) 

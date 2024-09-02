@@ -4,6 +4,9 @@
 #include "NVM_Transaction_Flash_RD.h"
 #include "NVM_Transaction_Flash_WR.h"
 
+#ifdef HYLEE
+#include "NVM_Transaction_Flash_TR.h"
+#endif
 
 namespace SSD_Components
 {
@@ -71,10 +74,14 @@ namespace SSD_Components
 			segment_user_request(request);
 
 			((Host_Interface_NVMe*)host_interface)->broadcast_user_request_arrival_signal(request);
-		} else {//This is a write request
+		} else if (request->Type == UserRequestType::WRITE) {//This is a write request
 			((Input_Stream_NVMe*)input_streams[request->Stream_id])->Waiting_user_requests.push_back(request);
 			((Input_Stream_NVMe*)input_streams[request->Stream_id])->STAT_number_of_write_requests++;
 			((Host_Interface_NVMe*)host_interface)->request_fetch_unit->Fetch_write_data(request);
+		} else { // hylee) this is a trim request
+			((Input_Stream_NVMe*)input_streams[request->Stream_id])->Waiting_user_requests.push_back(request);
+			((Input_Stream_NVMe*)input_streams[request->Stream_id])->STAT_number_of_trim_requests++;
+			((Host_Interface_NVMe*)host_interface)->request_fetch_unit->Fetch_trim_cmd(request);
 		}
 	}
 
@@ -198,10 +205,21 @@ namespace SSD_Components
 				transaction_size = req_size - hanled_sectors_count;
 			}
 			LPA_type lpa = internal_lsa / host_interface->sectors_per_subpage;
-
+#ifdef HYLEE
+			if (user_request->Type == UserRequestType::TRIM) { // hylee
+				access_status_bitmap = 0;
+			} else {
+				page_status_type temp = ~(0xffffffffffffffff << (int)transaction_size); // 
+				access_status_bitmap = temp << (int)(internal_lsa % host_interface->sectors_per_subpage); //write_sectors_bitmap
+			}
+			//printf("access_status_bitmap: %lx", access_status_bitmap);
+#endif
+#ifndef HYLEE
 			page_status_type temp = ~(0xffffffffffffffff << (int)transaction_size); // 
 			access_status_bitmap = temp << (int)(internal_lsa % host_interface->sectors_per_subpage); //write_sectors_bitmap
 			//printf("access_status_bitmap: %lx", access_status_bitmap);
+#endif
+
 #else
 			transaction_size = host_interface->sectors_per_page - (unsigned int)(lsa % host_interface->sectors_per_page);
 			if (hanled_sectors_count + transaction_size >= req_size) {
@@ -217,12 +235,19 @@ namespace SSD_Components
 					transaction_size * SECTOR_SIZE_IN_BYTE, lpa, NO_PPA, user_request, 0, access_status_bitmap, CurrentTimeStamp);
 				user_request->Transaction_list.push_back(transaction);
 				input_streams[user_request->Stream_id]->STAT_number_of_read_transactions++;
-			} else {//user_request->Type == UserRequestType::WRITE
+			} else if (user_request->Type == UserRequestType::WRITE) {//user_request->Type == UserRequestType::WRITE
 				NVM_Transaction_Flash_WR* transaction = new NVM_Transaction_Flash_WR(Transaction_Source_Type::USERIO, user_request->Stream_id,
 					transaction_size * SECTOR_SIZE_IN_BYTE, lpa, user_request, 0, access_status_bitmap, CurrentTimeStamp);
 				user_request->Transaction_list.push_back(transaction);
 				input_streams[user_request->Stream_id]->STAT_number_of_write_transactions++;
+#ifdef HYLEE
+			} else { // hylee) this is TRIM
+				NVM_Transaction_Flash_TR* transaction = new NVM_Transaction_Flash_TR(Transaction_Source_Type::USERIO, user_request->Stream_id,
+					transaction_size * SECTOR_SIZE_IN_BYTE, lpa, user_request, 0, access_status_bitmap, CurrentTimeStamp);
+				user_request->Transaction_list.push_back(transaction);
+				input_streams[user_request->Stream_id]->STAT_number_of_trim_transactions++;
 			}
+#endif
 
 			lsa = lsa + transaction_size;
 			hanled_sectors_count += transaction_size;			
@@ -320,6 +345,14 @@ namespace SSD_Components
 						new_reqeust->SizeInSectors = sqe->Command_specific[2] & (LHA_type)(0x0000ffff);
 						new_reqeust->Size_in_byte = new_reqeust->SizeInSectors * SECTOR_SIZE_IN_BYTE;
 						break;
+					//// hylee
+					case NVME_TRIM_OPCODE:
+						new_reqeust->Type = UserRequestType::TRIM;
+						new_reqeust->Start_LBA = ((LHA_type)sqe->Command_specific[1]) << 32 | (LHA_type)sqe->Command_specific[0];
+						new_reqeust->SizeInSectors = sqe->Command_specific[2] & (LHA_type)(0x0000ffff);
+						new_reqeust->Size_in_byte = new_reqeust->SizeInSectors * SECTOR_SIZE_IN_BYTE;
+						break;
+					////
 					default:
 						throw std::invalid_argument("NVMe command is not supported!");
 				}
@@ -327,6 +360,10 @@ namespace SSD_Components
 				break;
 			}
 			case DMA_Req_Type::WRITE_DATA:
+				COPYDATA(((User_Request*)dma_req_item->object)->Data, payload, payload_size);
+				((Input_Stream_Manager_NVMe*)(hi->input_stream_manager))->Handle_arrived_write_data((User_Request*)dma_req_item->object);
+				break;
+			case DMA_Req_Type::TRANSFER_TRIM: //// hylee
 				COPYDATA(((User_Request*)dma_req_item->object)->Data, payload, payload_size);
 				((Input_Stream_Manager_NVMe*)(hi->input_stream_manager))->Handle_arrived_write_data((User_Request*)dma_req_item->object);
 				break;
@@ -358,6 +395,19 @@ namespace SSD_Components
 		Submission_Queue_Entry* sqe = (Submission_Queue_Entry*) request->IO_command_info;
 		host_interface->Send_read_message_to_host((sqe->PRP_entry_2<<31) | sqe->PRP_entry_1, request->Size_in_byte);
 	}
+
+	//// hylee) function to fetch dma_req_item for trim cmd in Handle_new_arrived_request
+	void Request_Fetch_Unit_NVMe::Fetch_trim_cmd(User_Request* request)
+	{
+		DMA_Req_Item* dma_req_item = new DMA_Req_Item;
+		dma_req_item->Type = DMA_Req_Type::TRANSFER_TRIM;
+		dma_req_item->object = (void *)request;
+		dma_list.push_back(dma_req_item);
+
+		Submission_Queue_Entry* sqe = (Submission_Queue_Entry*) request->IO_command_info;
+		host_interface->Send_read_message_to_host((sqe->PRP_entry_2<<31) | sqe->PRP_entry_1, request->Size_in_byte); 
+	}
+	////
 
 	void Request_Fetch_Unit_NVMe::Send_completion_queue_element(User_Request* request, uint16_t sq_head_value)
 	{

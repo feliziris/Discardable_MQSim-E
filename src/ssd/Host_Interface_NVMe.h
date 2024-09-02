@@ -68,6 +68,7 @@ namespace SSD_Components
 		Request_Fetch_Unit_NVMe(Host_Interface_Base* host_interface);
 		void Fetch_next_request(stream_id_type stream_id);
 		void Fetch_write_data(User_Request* request);
+		void Fetch_trim_cmd(User_Request* request); // hylee) add function to fetch DMA_req_item only for trim cmd
 		void Send_read_data(User_Request* request);
 		void Send_completion_queue_element(User_Request* request, uint16_t sq_head_value);
 		void Process_pcie_write_message(uint64_t, void *, unsigned int);

@@ -6,7 +6,7 @@ enum class Trace_Time_Unit { PICOSECOND, NANOSECOND, MICROSECOND};//The unit of 
 #define NanoSecondCoeff  1000000000	//the coefficient to convert nanoseconds to second
 #define MicroSecondCoeff  1000000	//the coefficient to convert microseconds to second
 
-#define ALIBABA
+// #define ALIBABA
 //#define MSR_TRACE
 //#define OLD_TRACE
 
@@ -58,6 +58,7 @@ enum class Trace_Time_Unit { PICOSECOND, NANOSECOND, MICROSECOND};//The unit of 
 
 #define ASCIITraceWriteCode "0"
 #define ASCIITraceReadCode "1"
+#define ASCIITraceTrimCode "2" // hylee
 #define ASCIILineDelimiter ' '
 #define ASCIIItemsPerLine 5
 #endif

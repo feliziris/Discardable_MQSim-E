@@ -36,8 +36,10 @@ namespace SSD_Components
 		virtual ~Input_Stream_Base();
 		unsigned int STAT_number_of_read_requests;
 		unsigned int STAT_number_of_write_requests;
+		unsigned int STAT_number_of_trim_requests; // hylee
 		unsigned int STAT_number_of_read_transactions;
 		unsigned int STAT_number_of_write_transactions;
+		unsigned int STAT_number_of_trim_transactions; // hylee
 		sim_time_type STAT_sum_of_read_transactions_execution_time, STAT_sum_of_read_transactions_transfer_time, STAT_sum_of_read_transactions_waiting_time;
 		sim_time_type STAT_sum_of_write_transactions_execution_time, STAT_sum_of_write_transactions_transfer_time, STAT_sum_of_write_transactions_waiting_time;
 	};
@@ -75,11 +77,12 @@ namespace SSD_Components
 		virtual ~Request_Fetch_Unit_Base();
 		virtual void Fetch_next_request(stream_id_type stream_id) = 0;
 		virtual void Fetch_write_data(User_Request* request) = 0;
+		virtual void Fetch_trim_cmd(User_Request* request) = 0; // hylee
 		virtual void Send_read_data(User_Request* request) = 0;
 		virtual void Process_pcie_write_message(uint64_t, void *, unsigned int) = 0;
 		virtual void Process_pcie_read_message(uint64_t, void *, unsigned int) = 0;
 	protected:
-		enum class DMA_Req_Type { REQUEST_INFO, WRITE_DATA };
+		enum class DMA_Req_Type { REQUEST_INFO, WRITE_DATA, TRANSFER_TRIM }; // hylee) add req type for trim
 		struct DMA_Req_Item
 		{
 			DMA_Req_Type Type;
