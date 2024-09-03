@@ -794,7 +794,7 @@ namespace SSD_Components
 				Convert_ppa_to_address(transaction->PPA, transaction->Address);
 				addr = transaction->Address;
 
-				std::cout << "[GC DEBUG] invalidate blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
+				std::cout << "[TRIM DEBUG] invalidate blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
 				block_manager->Invalidate_subpage_in_block(streamID, addr);
 
 				page_status_type before_invalid = domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA);
@@ -1597,6 +1597,13 @@ namespace SSD_Components
 			block_manager->Allocate_block_and_page_in_plane_for_user_write(transaction->Stream_id, transaction->Address);
 		}
 		transaction->PPA = Convert_address_to_ppa(transaction->Address);
+#ifdef DEBUG_HY
+		NVM::FlashMemory::Physical_Page_Address addr = transaction->Address;
+		std::cout << "before trim ppa: " << transaction->PPA << std::endl;
+		std::cout << "[TRIM DEBUG] first write blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
+
+#endif
+
 
 
 		domain->Update_mapping_info(ideal_mapping_table, transaction->Stream_id, transaction->LPA, transaction->PPA,

@@ -78,7 +78,6 @@ namespace SSD_Components
 			plane_record->Data_wf[stream_id] = plane_record->Get_a_free_block(stream_id, false);
 #ifdef NO_CACHE
 			gc_and_wl_unit->Check_gc_required(plane_record->Get_free_block_pool_size(), page_address); // hylee) only cache turned off
-#else
 #endif
 		}
 

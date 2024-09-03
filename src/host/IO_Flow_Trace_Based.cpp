@@ -40,7 +40,7 @@ namespace Host_Components
 		if (current_trace_line[ASCIITraceTypeColumn].compare(ASCIITraceWriteCode) == 0) {
 			request->Type = Host_IO_Request_Type::WRITE;
 			STAT_generated_write_request_count++;
-		} else if (current_trace_line[ASCIITraceTypeColumn].compare(ASCIITraceTrimCode) == 2) { // hylee
+		} else if (current_trace_line[ASCIITraceTypeColumn].compare(ASCIITraceTrimCode) == 0) { // hylee
 			request->Type = Host_IO_Request_Type::TRIM;
 			STAT_generated_trim_request_count++;
 		} else {

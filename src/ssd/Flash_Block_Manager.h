@@ -1,7 +1,5 @@
 #ifndef FLASH_BLOCK_MANAGER_H
 #define FLASH_BLOCK_MANAGER_H
-// hylee
-#define NO_CACHE
 
 #include <list>
 #include "Flash_Block_Manager_Base.h"

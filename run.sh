@@ -1,1 +1,0 @@
-./MQSim -i ssd_config/ssd_16_16_f1_nopre_sh.xml -w workload_config/hm.xml | tee result/0813/hm.txt

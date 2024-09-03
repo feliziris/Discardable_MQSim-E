@@ -1,6 +1,9 @@
 #ifndef ENGINE_H
 #define ENGINE_H
-#define HYLEE //hylee
+// hylee
+#define HYLEE
+#define DEBUG_HY
+#define NO_CACHE
 
 #include <iostream>
 #include <unordered_map>
