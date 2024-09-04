@@ -1,0 +1,17 @@
+build/
+.vscode/
+traces/
+workload_config/
+workload_settings/
+ssd_config/
+README.md
+MQSim
+*.exe
+*.pdb
+*.sln
+*.vcxproj
+*.filters
+*.txt
+*.sh
+*.xml
+*.user
