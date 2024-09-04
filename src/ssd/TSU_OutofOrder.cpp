@@ -196,6 +196,7 @@ namespace SSD_Components
 					break;
 #ifdef TMP_HYLEE
 				case Transaction_Type::TRIM:
+					_NVMController->handle_ready_signal_from_chip();
 #endif
 				default:
 					break;
