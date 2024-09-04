@@ -14,7 +14,9 @@
 namespace SSD_Components
 {
 	enum class SimulationMode { STANDALONE, FULL_SYSTEM };
-
+#ifdef HYLEE
+	enum class FTL_SimEventType { TRIM_COMPLETED };
+#endif
 	class Flash_Block_Manager_Base;
 	class Address_Mapping_Unit_Base;
 	class GC_and_WL_Unit_Base;

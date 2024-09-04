@@ -1022,8 +1022,17 @@ namespace SSD_Components
 	{
 	}
 
-	void FTL::Execute_simulator_event(MQSimEngine::Sim_Event*)
+	void FTL::Execute_simulator_event(MQSimEngine::Sim_Event* ev)
 	{
+#ifdef TMP_HYLEE
+		std::list<NVM_Transaction_Flash*>* transactionList = (std::list<NVM_Transaction_Flash*>*)ev->Parameters;
+		int i = 0;
+		for (std::list<NVM_Transaction_Flash*>::iterator it = (*transactionList).begin();
+			it != (*transactionList).end(); it++, i++)
+		{
+			static_cast<NVM_PHY_ONFI*>broadcastTransactionServicedSignal(*it);
+		}
+#endif
 	}
 
 	LPA_type FTL::Convert_host_logical_address_to_device_address(LHA_type lha)

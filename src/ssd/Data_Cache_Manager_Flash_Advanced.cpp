@@ -532,7 +532,7 @@ namespace SSD_Components
 					break;
 				}
 			}
-		} else {//This is a write request
+		} else if (transaction->Type == Transaction_Type::WRITE) {//This is a write request
 			switch (Data_Cache_Manager_Flash_Advanced::caching_mode_per_input_stream[transaction->Stream_id])
 			{
 				case Caching_Mode::TURNED_OFF:
@@ -621,6 +621,20 @@ namespace SSD_Components
 				}
 			}
 		}
+#ifdef HYLEE		 
+		else {//This is a trim request
+			switch (Data_Cache_Manager_Flash_Advanced::caching_mode_per_input_stream[transaction->Stream_id])
+			{
+				case Caching_Mode::TURNED_OFF:
+				case Caching_Mode::READ_CACHE:
+					transaction->UserIORequest->Transaction_list.remove(transaction);
+					if (_my_instance->is_user_request_finished(transaction->UserIORequest)) {
+						_my_instance->broadcast_user_request_serviced_signal(transaction->UserIORequest);
+					}
+					break;
+			}
+		}
+#endif
 	}
 
 	void Data_Cache_Manager_Flash_Advanced::service_dram_access_request(Memory_Transfer_Info* request_info)

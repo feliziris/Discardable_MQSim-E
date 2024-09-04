@@ -637,6 +637,12 @@ namespace SSD_Components
 			ftl->TSU->Prepare_for_transaction_submit();
 			for (std::list<NVM_Transaction*>::const_iterator it = transactionList.begin();
 				it != transactionList.end(); it++) {
+#ifdef HYLEE
+				if (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::TRIM) {
+					ftl->TSU->Submit_transaction(static_cast<NVM_Transaction_Flash*>(*it));
+					continue;
+				}
+#endif
 				if (((NVM_Transaction_Flash*)(*it))->Physical_address_determined) {
 					ftl->TSU->Submit_transaction(static_cast<NVM_Transaction_Flash*>(*it));
 					if (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::WRITE) {
@@ -661,10 +667,8 @@ namespace SSD_Components
 					}
 				}
 			}
-
 			ftl->TSU->Schedule();
 		}
-
 
 		Start_servicing_writes_for_overfull();
 
@@ -764,7 +768,7 @@ namespace SSD_Components
 			transaction->Physical_address_determined = true;
 			
 			return true;
-		} else if (transaction->Type == Transaction_Type::WRITE){//This is a write transaction	
+		} else if (transaction->Type == Transaction_Type::WRITE) {//This is a write transaction	
 				
 			allocate_plane_for_user_write((NVM_Transaction_Flash_WR*)transaction);
 #ifndef EXECUTION_CONTROL 
@@ -1601,7 +1605,6 @@ namespace SSD_Components
 		NVM::FlashMemory::Physical_Page_Address addr = transaction->Address;
 		std::cout << "before trim ppa: " << transaction->PPA << std::endl;
 		std::cout << "[TRIM DEBUG] first write blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
-
 #endif
 
 

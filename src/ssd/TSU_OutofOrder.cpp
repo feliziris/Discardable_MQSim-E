@@ -150,7 +150,6 @@ namespace SSD_Components
 		if (opened_scheduling_reqs < 0) {
 			PRINT_ERROR("TSU_OutOfOrder: Illegal status!");
 		}
-
 		if (transaction_receive_slots.size() == 0) {
 			return;
 		}
@@ -195,6 +194,10 @@ namespace SSD_Components
 				case Transaction_Type::ERASE:
 					GCEraseTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
 					break;
+#ifdef TMP_HYLEE
+				case Transaction_Type::TRIM:
+					_NVMController->
+#endif
 				default:
 					break;
 			}
