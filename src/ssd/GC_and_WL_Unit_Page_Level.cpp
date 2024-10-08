@@ -704,10 +704,10 @@ namespace SSD_Components
 				break;
 			default:
 				break;
-		}
 #else
-				
+				gc_candidate_block_id = 0;		
 #endif
+		}
 		
 		//This should never happen, but we check it here for safty
 		if (pbke->Ongoing_erase_operations.find(gc_candidate_block_id) != pbke->Ongoing_erase_operations.end()) {
