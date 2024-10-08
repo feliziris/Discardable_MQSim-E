@@ -205,6 +205,7 @@ namespace SSD_Components
 				transaction_size = req_size - hanled_sectors_count;
 			}
 			LPA_type lpa = internal_lsa / host_interface->sectors_per_subpage;
+			std::cout << "lpa " << lpa << std::endl;
 #ifdef HYLEE
 			if (user_request->Type == UserRequestType::TRIM) { // hylee
 				access_status_bitmap = 0;

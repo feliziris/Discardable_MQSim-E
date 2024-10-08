@@ -287,6 +287,7 @@ namespace SSD_Components
 	inline PPA_type AddressMappingDomain::Get_ppa(const bool ideal_mapping, const stream_id_type stream_id, const LPA_type lpa)
 	{
 		//std::cout << "[flag2] lpa: " << lpa<<std::endl;
+		assert(GlobalMappingTable != NULL); // hylee
 		if (ideal_mapping) {
 			return GlobalMappingTable[lpa].PPA;
 		} else {
@@ -523,7 +524,6 @@ namespace SSD_Components
 		bool try_query = true;
 		int subpgs_hanged_r = 0;
 		int subpgs_hanged_w = 0;
-
 		// checking the possiblity of write request using token value.
 		std::list<NVM_Transaction*>::const_iterator it = transactionList.begin();
 		bool is_write = (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::WRITE) ? true : false;
@@ -556,6 +556,7 @@ namespace SSD_Components
 				if (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::READ && transactionList.size() > 4) {
 					//std::cout << "[read_ppa debug]" << std::endl;
 				}
+				std::cout << "lpn " << ((NVM_Transaction_Flash*)(*it))->LPA << std::endl;
 				query_cmt((NVM_Transaction_Flash*)(*it++));
 			}
 
@@ -701,6 +702,8 @@ namespace SSD_Components
 				Stats::total_trimTR_CMT_queries_per_stream[stream_id]++;
 			}
 
+			// hylee
+			// std::cout << "lpn " << transaction->LPA << std::endl;
 			if (translate_lpa_to_ppa(stream_id, transaction)) {
 				return true;
 			} else {
@@ -756,6 +759,8 @@ namespace SSD_Components
 	bool Address_Mapping_Unit_Page_Level::translate_lpa_to_ppa(stream_id_type streamID, NVM_Transaction_Flash* transaction)
 	{
 		PPA_type ppa = domains[streamID]->Get_ppa(ideal_mapping_table, streamID, transaction->LPA);
+		if ((transaction->LPA == 2559) || (transaction->LPA == 2571))
+			std::cout << "lpa " << transaction->LPA << " ppa " << ppa << std::endl;
 
 		if (transaction->Type == Transaction_Type::READ) {
 			//if (ppa == NO_PPA) std::cout << "lpa does not exists in table" << std::endl;
@@ -799,18 +804,12 @@ namespace SSD_Components
 				Convert_ppa_to_address(transaction->PPA, transaction->Address);
 				addr = transaction->Address;
 
-				std::cout << "[TRIM DEBUG] invalidate blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
+				// std::cout << "[TRIM DEBUG] invalidate blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
 				block_manager->Invalidate_subpage_in_block(streamID, addr);
-
-				page_status_type before_invalid = domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA);
-
-				domain->Update_mapping_info(ideal_mapping_table, transaction->Stream_id, transaction->LPA, transaction->PPA,
+				
+				block_manager->debugging(); // hylee
+				domain->Update_mapping_info(ideal_mapping_table, transaction->Stream_id, transaction->LPA, NO_PPA,
 					((NVM_Transaction_Flash_TR*)transaction)->write_sectors_bitmap & domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA));
-
-				page_status_type after_invalid = domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA);
-				std::cout << "before invalidation: " << std::hex << before_invalid << "  after invalidation: " << std::hex << after_invalid << std::endl;
-
-				(user_Alloc_count[((NVM_Transaction_Flash_TR*)transaction)->Stream_id])--;
 			}
 		}
 #endif
@@ -1345,10 +1344,12 @@ namespace SSD_Components
 	void Address_Mapping_Unit_Page_Level::allocate_plane_for_user_write(NVM_Transaction_Flash_WR* transaction, bool is_for_gc)
 	{
 		LPA_type lpn = transaction->LPA;
+		// std::cout << "alloc plane lpa: " << lpn << std::endl;
 		NVM::FlashMemory::Physical_Page_Address& targetAddress = transaction->Address;
 		AddressMappingDomain* domain = domains[transaction->Stream_id];
 
 //// STATIC Plane Allocation.
+// hylee)
 #if 0
 		lpn = transaction->LPA;
 //// Dynamic Plane Allocation.
@@ -1356,7 +1357,8 @@ namespace SSD_Components
 		if (is_for_gc == false)
 		{
 			lpn = user_Alloc_count[transaction->Stream_id];
-	//		lpn = (user_Alloc_count[0])++;
+			// std::cout << "lpn " << lpn << std::endl;
+			// lpn = (user_Alloc_count[0])++;
 		}
 		else
 		{
@@ -1478,10 +1480,11 @@ namespace SSD_Components
 				//Static: Plane first
 			case Flash_Plane_Allocation_Scheme_Type::PCWD:
 				targetAddress.ChannelID = domain->Channel_ids[(unsigned int)((lpn / domain->Plane_no) % domain->Channel_no)];
+				PRINT_MESSAGE("lpn:" << lpn << " plane no " << domain->Plane_no << " Channel_no " << domain->Channel_no)
 				targetAddress.ChipID = domain->Chip_ids[(unsigned int)((lpn / (domain->Plane_no * domain->Channel_no)) % domain->Chip_no)];
 				targetAddress.DieID = domain->Die_ids[(unsigned int)((lpn / (domain->Plane_no * domain->Channel_no * domain->Chip_no)) % domain->Die_no)];
 				targetAddress.PlaneID = domain->Plane_ids[(unsigned int)(lpn % domain->Plane_no)];
-				//std::cout << "[debug] cha,chip,Die,Plane: " << targetAddress.ChannelID<<", " << targetAddress.ChipID << ", " << targetAddress.DieID << ", " << targetAddress.PlaneID << ", " << std::endl;
+				// std::cout << "[debug] cha,chip,Die,Plane: " << targetAddress.ChannelID<<", " << targetAddress.ChipID << ", " << targetAddress.DieID << ", " << targetAddress.PlaneID << ", " << std::endl;
 				break;
 			case Flash_Plane_Allocation_Scheme_Type::PCDW:
 				targetAddress.ChannelID = domain->Channel_ids[(unsigned int)((lpn / domain->Plane_no) % domain->Channel_no)];
@@ -1566,7 +1569,7 @@ namespace SSD_Components
 					//std::cout << "old_addr(ch,chip,die,plane,block,pg): " << addr.ChannelID <<", "<< addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", " << addr.PageID << std::endl;
 
 					block_manager->Invalidate_subpage_in_block(transaction->Stream_id, addr);
-
+					
 				} else {
 					page_status_type read_pages_bitmap = status_intersection ^ prev_page_status;
 
@@ -1576,9 +1579,9 @@ namespace SSD_Components
 					
 
 					// js question : what is this? => 삭제 예정
-					if (transaction->Address.ChannelID == 3 && transaction->Address.ChipID == 0 && transaction->Address.DieID == 0 && transaction->Address.PlaneID == 1 && transaction->Address.BlockID == 255 && transaction->Address.PageID == 0 && transaction->Address.subPageID == 1) {
-						std::cout << "USER invalidate 3 0 0 1 255 0 1" << std::endl;
-					}
+					// if (transaction->Address.ChannelID == 3 && transaction->Address.ChipID == 0 && transaction->Address.DieID == 0 && transaction->Address.PlaneID == 1 && transaction->Address.BlockID == 255 && transaction->Address.PageID == 0 && transaction->Address.subPageID == 1) {
+					// 	std::cout << "USER invalidate 3 0 0 1 255 0 1" << std::endl;
+					// }
 
 					NVM_Transaction_Flash_RD *update_read_tr = new NVM_Transaction_Flash_RD(transaction->Source, transaction->Stream_id,
 						count_sector_no_from_status_bitmap(read_pages_bitmap) * SECTOR_SIZE_IN_BYTE, transaction->LPA, old_ppa, transaction->UserIORequest,
@@ -1600,15 +1603,16 @@ namespace SSD_Components
 			block_manager->Allocate_block_and_page_in_plane_for_gc_write(transaction->Stream_id, transaction->Address);
 		} else {
 			block_manager->Allocate_block_and_page_in_plane_for_user_write(transaction->Stream_id, transaction->Address);
+			
 		}
 		transaction->PPA = Convert_address_to_ppa(transaction->Address);
-#ifdef DEBUG_HY
+#ifdef TMP
 		NVM::FlashMemory::Physical_Page_Address addr = transaction->Address;
 		std::cout << "before trim ppa: " << transaction->PPA << std::endl;
 		std::cout << "[TRIM DEBUG] first write blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
 #endif
 
-
+		block_manager->debugging();
 
 		domain->Update_mapping_info(ideal_mapping_table, transaction->Stream_id, transaction->LPA, transaction->PPA,
 			((NVM_Transaction_Flash_WR*)transaction)->write_sectors_bitmap | domain->Get_page_status(ideal_mapping_table, transaction->Stream_id, transaction->LPA));
@@ -1863,6 +1867,7 @@ namespace SSD_Components
 	inline void Address_Mapping_Unit_Page_Level::Get_data_mapping_info_for_gc(const stream_id_type stream_id, const LPA_type lpa, PPA_type& ppa, page_status_type& page_state)
 	{
 		if (domains[stream_id]->Mapping_entry_accessible(ideal_mapping_table, stream_id, lpa)) {
+			ppa = domains[0]->Get_ppa(ideal_mapping_table, stream_id, lpa); // hylee
 			ppa = domains[stream_id]->Get_ppa(ideal_mapping_table, stream_id, lpa);
 			page_state = domains[stream_id]->Get_page_status(ideal_mapping_table, stream_id, lpa);
 		} else {

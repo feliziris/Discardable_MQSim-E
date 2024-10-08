@@ -1,9 +1,7 @@
-
 #include "../nvm_chip/flash_memory/Physical_Page_Address.h"
 #include "Flash_Block_Manager.h"
 #include "Stats.h"
-
-
+#include "assert.h" // hylee
 
 
 namespace SSD_Components
@@ -49,14 +47,19 @@ namespace SSD_Components
 	//assign PageID & subPageID
 	void Flash_Block_Manager::Allocate_block_and_page_in_plane_for_user_write(const stream_id_type stream_id, NVM::FlashMemory::Physical_Page_Address& page_address)
 	{
+		flash_block_ID_type block_id = 0;
 		PlaneBookKeepingType* plane_record = &plane_manager[page_address.ChannelID][page_address.ChipID][page_address.DieID][page_address.PlaneID];
 		page_address.BlockID = plane_record->Data_wf[stream_id]->BlockID;
+		block_id = page_address.BlockID;
 		//std::cout << "Current_subpage_write_index: " << plane_record->Data_wf[stream_id]->Current_subpage_write_index<< std::endl;
 		page_address.subPageID = plane_record->Data_wf[stream_id]->Current_subpage_write_index++;
 		page_address.PageID = plane_record->Data_wf[stream_id]->Current_page_write_index;
 		//std::cout << "page_address.subPageID: " << page_address.subPageID << std::endl;
 		plane_record->Valid_subpages_count++;
 		plane_record->Free_subpages_count--;
+		// hylee
+		// std::cout << "data wf check " << plane_record->Data_wf[stream_id]->Current_subpage_write_index << std::endl;
+		// std::cout << "Blocks check " << plane_record->Blocks[block_id].Current_subpage_write_index << std::endl;
 
 		if (plane_record->Data_wf[stream_id]->Current_subpage_write_index == ALIGN_UNIT_SIZE) {
 			plane_record->Data_wf[stream_id]->Current_subpage_write_index = 0;
@@ -310,6 +313,8 @@ namespace SSD_Components
 		PlaneBookKeepingType* plane_record = &plane_manager[page_address.ChannelID][page_address.ChipID][page_address.DieID][page_address.PlaneID];
 		plane_record->Invalid_subpages_count++;
 		plane_record->Valid_subpages_count--;
+		assert(plane_record->Valid_subpages_count > 1);
+		// std::cout << "valid subpg cnt: " << plane_record->Valid_subpages_count << std::endl; // hylee
 
 		if (plane_record->Blocks[page_address.BlockID].Stream_id != stream_id) {
 			PRINT_MESSAGE("Page Info " << page_address.ChannelID << " " << page_address.ChipID << " " << page_address.DieID << " " << page_address.PlaneID << " " << page_address.BlockID << " " << page_address.PageID << ", subPg: "<<page_address.subPageID<< " Stream: " << plane_record->Blocks[page_address.BlockID].Stream_id);

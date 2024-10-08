@@ -301,7 +301,7 @@ namespace Host_Components
 #if LOG_USER_READ
 			read_log_file << flow_id << " " << (Simulator->Time() / SIM_TIME_TO_MICROSECONDS_COEFF) << "  " << (request_delay / SIM_TIME_TO_MICROSECONDS_COEFF) << "  " << request->LBA_count << " " << request->Start_LBA << " " << request->Arrival_time << " " << request->Enqueue_time << std::endl;
 #endif
-		} else {
+		} else if (request->Type == Host_IO_Request_Type::WRITE) {
 			STAT_serviced_write_request_count++;
 			STAT_sum_device_response_time_write += device_response_time;
 			STAT_sum_request_delay_write += request_delay;
@@ -321,7 +321,11 @@ namespace Host_Components
 #if LOG_USER_WRITE
 			write_log_file << flow_id << " " << (Simulator->Time() / SIM_TIME_TO_MICROSECONDS_COEFF) << "  " << (request_delay / SIM_TIME_TO_MICROSECONDS_COEFF) << "  " << request->LBA_count << " " << request->Start_LBA << " " << request->Arrival_time << " " << request->Enqueue_time << std::endl;
 #endif
+#ifdef HYLEE
+		} else {
+			STAT_serviced_trim_request_count++;
 		}
+#endif
 
 		delete request;
 
@@ -374,7 +378,7 @@ namespace Host_Components
 				}
 			}
 			progress_bar += "] ";
-			PRINT_MESSAGE(progress_bar << " " << progress << "% progress in " << ID() << std::endl)
+			PRINT_MESSAGE(progress_bar << " " << std::dec << progress << "%" << " progress in " << ID() << std::endl)
 			next_progress_step += 5;
 		}
 
@@ -485,6 +489,12 @@ namespace Host_Components
 		return STAT_serviced_request_count;
 	}
 
+#ifdef HYLEE
+	uint32_t IO_Flow_Base::Get_serviced_trim_count()
+	{
+		return STAT_serviced_trim_request_count;
+	}
+#endif
 	uint32_t IO_Flow_Base::Get_device_response_time()
 	{
 		if (STAT_serviced_request_count == 0) {

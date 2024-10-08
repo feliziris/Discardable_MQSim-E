@@ -123,6 +123,9 @@ namespace NVM
 			}
 
 			targetDie->Expected_finish_time = Simulator->Time() + Get_command_execution_latency(command->CommandCode, command->Address[0].PageID);
+#ifdef TMP
+			std::cout << "prev firetime: " << Simulator->Time() << std::endl;
+#endif
 			targetDie->CommandFinishEvent = Simulator->Register_sim_event(targetDie->Expected_finish_time,
 				this, command, static_cast<int>(Chip_Sim_Event_Type::COMMAND_FINISHED));
 			targetDie->CurrentCMD = command;

@@ -1,4 +1,6 @@
 #include "GC_and_WL_Unit_Base.h"
+#include "Address_Mapping_Unit_Page_Level.h" // hylee
+#include <assert.h> // hylee
 
 namespace SSD_Components
 {
@@ -125,7 +127,7 @@ namespace SSD_Components
 						
 						delete RelatedWrite;					
 					}
-				} else {		
+				} else {
 					_my_instance->address_mapping_unit->Get_data_mapping_info_for_gc(transaction->Stream_id, transaction->LPA, ppa, page_status_bitmap);
 					
 					//There has been no write on the page since GC start, and it is still valid

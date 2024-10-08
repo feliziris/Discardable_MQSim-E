@@ -155,7 +155,8 @@ namespace SSD_Components
 		}
 		Free_block_pool.erase(Free_block_pool.begin());
 		new_block->Stream_id = stream_id;
-		new_block->Holds_mapping_data = for_mapping_data;
+		// new_block->Holds_mapping_data = for_mapping_data;
+		new_block->Holds_mapping_data = false; // hylee
 		Block_usage_history.push(new_block->BlockID);
 		//std::cout << "Get_a_free_block: remain size(): " << Free_block_pool.size() << std::endl;
 		return new_block;
@@ -170,7 +171,8 @@ namespace SSD_Components
 		}
 		Free_block_pool.erase(std::next(Free_block_pool.rbegin()).base());
 		new_block->Stream_id = stream_id;
-		new_block->Holds_mapping_data = for_mapping_data;
+		// new_block->Holds_mapping_data = for_mapping_data;
+		new_block->Holds_mapping_data = false; // hylee
 		Block_usage_history.push(new_block->BlockID);
 	
 		return new_block;
@@ -352,6 +354,7 @@ namespace SSD_Components
 							std::cout << "\t" << channelID << " " << chipID << " " << dieID << " " << planeID << ": F(" << plane_manager[channelID][chipID][dieID][planeID].Free_subpages_count << ", " 
 								<< ((double)plane_manager[channelID][chipID][dieID][planeID].Free_subpages_count / plane_manager[channelID][chipID][dieID][planeID].Total_subpages_count)
 								<< " ) V( "<< plane_manager[channelID][chipID][dieID][planeID].Valid_subpages_count << " ) IV( " << plane_manager[channelID][chipID][dieID][planeID].Invalid_subpages_count << " )" << std::endl;
+							std::cout << "free block pool cnt: " << plane_manager[channelID][chipID][dieID][planeID].Get_free_block_pool_size() << std::endl; // hylee
 						}
 
 						for (unsigned int blockID = 0; blockID < block_no_per_plane; blockID++) {
@@ -366,6 +369,7 @@ namespace SSD_Components
 			std::cout << "\t total free subpages count: " << total_free_pages_count << std::endl;
 			std::cout << "\t total valid subpages count: " << total_valid_pages_count << std::endl;
 			std::cout << "\t total invalid subpages count: " << total_invalid_pages_count << std::endl;
+			std::cout << "\t total total subpages cout: " << total_pages_count << std::endl;
 			std::cout << "\t total erase count: " << total_erase_count << std::endl;
 			block_log = false;
 		}

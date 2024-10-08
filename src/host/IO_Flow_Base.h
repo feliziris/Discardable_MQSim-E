@@ -59,6 +59,7 @@ namespace Host_Components
 		LHA_type Get_end_lsa_address_on_device();
 		uint32_t Get_generated_request_count();
 		uint32_t Get_serviced_request_count();//in microseconds
+		uint32_t Get_serviced_trim_count(); // hylee
 		uint32_t Get_device_response_time();//in microseconds
 		uint32_t Get_min_device_response_time();//in microseconds
 		uint32_t Get_max_device_response_time();//in microseconds

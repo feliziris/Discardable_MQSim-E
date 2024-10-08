@@ -6,6 +6,8 @@
 #include "FTL.h"
 #include <algorithm>
 //#include <windows.h>
+#include <assert.h>
+
 bool GC_on_for_debug = false;
 bool read_subpg_offset_reaches_end = false;
 int total_gc_rw_interval_ER = 0; //Total made read/write transaction in interval between 'select vicitim block' and 'erase block'
@@ -130,7 +132,6 @@ namespace SSD_Components
 					Stats::Interval_Physical_write_count += gc_unit_count * pages_no_per_block;
 				}
 
-				
 				//victim selection
 				if (select_victim_block() == 0){
 					// NOTHING TO DO. dummy read/write_pages call
@@ -514,8 +515,11 @@ namespace SSD_Components
 
 		PlaneBookKeepingType* pbke;
 		NVM::FlashMemory::Physical_Page_Address plane_address;
-		unsigned int total_valid_subpage_count = 0;
-
+#ifdef HYLEE
+		unsigned int total_invalid_subpage_count = 0;
+#else
+		// unsigned int total_valid_subpage_count = 0;
+#endif
 		for (unsigned int plane_idx = 0; plane_idx < plane_no_per_die; plane_idx++) {
 			plane_address.PlaneID = plane_idx;
 
@@ -531,12 +535,18 @@ namespace SSD_Components
 						pbke = block_manager->Get_plane_bookkeeping_entry(plane_address);
 						//total_valid_page_count += (pbke->Blocks[block_id].Current_page_write_index - pbke->Blocks[block_id].Invalid_page_count);
 						//to make accurate, have to consider subpage's Current_subpage_write_index. but approximate it.
-						total_valid_subpage_count += ((pbke->Blocks[block_id].Current_page_write_index * ALIGN_UNIT_SIZE + pbke->Blocks[block_id].Current_subpage_write_index)  - pbke->Blocks[block_id].Invalid_subpage_count);
+#ifdef HYLEE
+						total_invalid_subpage_count += pbke->Blocks[block_id].Invalid_subpage_count;
+#else
+						// total_valid_subpage_count += ((pbke->Blocks[block_id].Current_page_write_index * ALIGN_UNIT_SIZE + pbke->Blocks[block_id].Current_subpage_write_index)  - pbke->Blocks[block_id].Invalid_subpage_count);
+						// std::cout << "inv subpg cnt: " << pbke->Blocks[block_id].Invalid_subpage_count << "total val subpg: " << total_valid_subpage_count << std::endl;
+						// std::cout << "check " << pbke->Blocks[block_id].Current_page_write_index * ALIGN_UNIT_SIZE + pbke->Blocks[block_id].Current_subpage_write_index << std::endl;
+#endif
 					}
 				}
 			}
 		}
-		return total_valid_subpage_count;
+		return total_invalid_subpage_count;
 
 	}
 
@@ -582,22 +592,41 @@ namespace SSD_Components
 
 		unsigned int total_pages_count = 0;
 		unsigned int valid_pages_count = 0;
-		if (block_selection_policy != GC_Block_Selection_Policy_Type::GREEDY) {
-			PRINT_ERROR("block_selection_policy should be GREEDY ")
-		}
+		// if (block_selection_policy != GC_Block_Selection_Policy_Type::GREEDY) {
+		// 	PRINT_ERROR("block_selection_policy should be GREEDY ")
+		// }
 		switch (block_selection_policy) {
 			case SSD_Components::GC_Block_Selection_Policy_Type::GREEDY://Find the set of blocks with maximum number of invalid pages and no free pages
 			{
+				gc_candidate_block_id = 0;
+#ifdef HYLEE
+				unsigned int max_valid_page_count = 0x0;
+				unsigned int cur_invalid_subpage_count;
+				for (flash_block_ID_type block_id = 0; block_id < block_no_per_plane; block_id++) {
+					cur_invalid_subpage_count = get_valid_subpage_count(block_id);
+					std::cout << "[DEBUG GC] blk id:"<<block_id<<", Valid subpg_cnt: " << std::dec << cur_invalid_subpage_count << ", Write idx: " << pbke->Blocks[block_id].Current_page_write_index << std::endl; // hylee
+					std::cout << "stream id check " << pbke->Blocks[block_id].Stream_id << std::endl; // hylee
+
+					// js question : gc victim 선정할 때 stream 관련 확인은 없음
+					assert(pbke->Blocks[block_id].Stream_id == 0); // hylee
+					if ((cur_invalid_subpage_count > max_valid_page_count) 
+						&& (pbke->Blocks[block_id].Current_page_write_index == pages_no_per_block)
+						&& is_safe_gc_wl_candidate(pbke, block_id)) {
+						gc_candidate_block_id = block_id;
+						max_valid_page_count = cur_invalid_subpage_count;
+					}
+				}
+#else
 				unsigned int min_valid_page_count = 0x7fffffff;
 				unsigned int cur_valid_subpage_count;
-									
-				gc_candidate_block_id = 0; //
 				
 				for (flash_block_ID_type block_id = 0; block_id < block_no_per_plane; block_id++) {
 					cur_valid_subpage_count = get_valid_subpage_count(block_id);
-					std::cout << "[DEBUG GC] blk id:"<<block_id<<", Valid subpg_cnt: " << cur_valid_subpage_count << ", Write idx: " << pbke->Blocks[block_id].Current_page_write_index << std::endl; // hylee
+					std::cout << "[DEBUG GC] blk id:"<<block_id<<", Valid subpg_cnt: " << std::dec << cur_valid_subpage_count << ", Write idx: " << pbke->Blocks[block_id].Current_page_write_index << std::endl; // hylee
+					std::cout << "stream id check " << pbke->Blocks[block_id].Stream_id << std::endl; // hylee
 
 					// js question : gc victim 선정할 때 stream 관련 확인은 없음
+					assert(pbke->Blocks[block_id].Stream_id == 0); // hylee
 					if ((cur_valid_subpage_count < min_valid_page_count) 
 						&& (pbke->Blocks[block_id].Current_page_write_index == pages_no_per_block)
 						&& is_safe_gc_wl_candidate(pbke, block_id)) {
@@ -605,7 +634,7 @@ namespace SSD_Components
 						min_valid_page_count = cur_valid_subpage_count;
 					}
 				}
-
+#endif
 				break;
 			}
 			case SSD_Components::GC_Block_Selection_Policy_Type::RGA:
@@ -669,12 +698,16 @@ namespace SSD_Components
 				break;
 			}
 			case SSD_Components::GC_Block_Selection_Policy_Type::FIFO:
+#ifdef ORG_FIFO
 				gc_candidate_block_id = pbke->Block_usage_history.front();
 				pbke->Block_usage_history.pop();
 				break;
 			default:
 				break;
 		}
+#else
+				
+#endif
 		
 		//This should never happen, but we check it here for safty
 		if (pbke->Ongoing_erase_operations.find(gc_candidate_block_id) != pbke->Ongoing_erase_operations.end()) {
@@ -745,7 +778,7 @@ namespace SSD_Components
 		Stats::Utilization = (double)valid_pages_count / total_pages_count; // informaive
 
 		Stats::GC_count++;
-		if (Stats::GC_count % 100 == 0)
+		if (Stats::GC_count % 10 == 0) // hylee) 100
 		{
 			Stats::WAF[Stats::WAF_index] = (double)( (Stats::Physical_write_count - Stats::Prev_physical_write_count))/(Stats::Host_write_count - Stats::Prev_host_write_count);
 			Stats::WAI[Stats::WAF_index] = (double)(Stats::Physical_write_count - Stats::Prev_physical_write_count)/(Stats::Host_write_count - Stats::Prev_host_write_count);
@@ -754,14 +787,17 @@ namespace SSD_Components
 			WAF[Stats::WAF_index % 10] = Stats::WAF[Stats::WAF_index];
 
 			Stats::Prev_physical_write_count = Stats::Physical_write_count;
+			std::cout << "physical write cnt: " << Stats::Physical_write_count << std::endl; // hylee
 			Stats::Prev_host_write_count = Stats::Host_write_count;
+			std::cout << "host wr cnt: " << Stats::Host_write_count << std::endl;
 			Stats::WAF_index++;
-
-			//PRINT_MESSAGE(" WAF : " << WAF[0] <<" " << WAF[1] <<" " << WAF[2]<<" " << WAF[3]<<" " << WAF[4]<<" " << WAF[5]<<" " << WAF[6]<<" " << WAF[7]<<" " << WAF[8] <<" " << WAF[9]);
-			//PRINT_MESSAGE(" WAI : " << WAI[0] <<" " << WAI[1] <<" " << WAI[2]<<" " << WAI[3]<<" " << WAI[4]<<" " << WAI[5]<<" " << WAI[6]<<" " << WAI[7]<<" " << WAI[8] <<" " << WAI[9]);
 			
-			//PRINT_MESSAGE("WAF index  " << Stats::WAF_index << " Is saturated " << is_WAF_saturated(g_diff) << " diff " << g_diff);
-
+			if (Stats::GC_count % 5 == 0) {
+				PRINT_MESSAGE(" WAF : " << WAF[0] <<" " << WAF[1] <<" " << WAF[2]<<" " << WAF[3]<<" " << WAF[4]<<" " << WAF[5]<<" " << WAF[6]<<" " << WAF[7]<<" " << WAF[8] <<" " << WAF[9]);
+				//PRINT_MESSAGE(" WAI : " << WAI[0] <<" " << WAI[1] <<" " << WAI[2]<<" " << WAI[3]<<" " << WAI[4]<<" " << WAI[5]<<" " << WAI[6]<<" " << WAI[7]<<" " << WAI[8] <<" " << WAI[9]);
+				
+				//PRINT_MESSAGE("WAF index  " << Stats::WAF_index << " Is saturated " << is_WAF_saturated(g_diff) << " diff " << g_diff);
+			}
 	
 		}
 
@@ -797,7 +833,7 @@ namespace SSD_Components
 		{
 			PRINT_MESSAGE(Stats::GC_count << " New Victim: " << gc_candidate_block_id << "  stream : " <<victim_blocks[0]->Stream_id << "  valid : " << valid_page_count << " cur_token : " << token_per_write << " free blk : " << free_block_count << " c_token : " << token << " U: " << Stats::Utilization  << " W: " << WAF[(Stats::WAF_index-1) % 10]); 
 		}
-
+		std::cout << "vald pg cnt " << valid_page_count << std::endl; 
 		return valid_page_count;
 	}
 

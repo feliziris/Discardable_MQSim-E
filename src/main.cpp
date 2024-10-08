@@ -11,7 +11,7 @@
 #include "utils/DistributionTypes.h"
 
 using namespace std;
-
+using namespace SSD_Components;
 
 void command_line_args(char* argv[], string& input_file_path, string& workload_file_path)
 {
@@ -243,10 +243,11 @@ void collect_results(SSD_Device& ssd, Host_System& host, const char* output_file
 	std::vector<Host_Components::IO_Flow_Base*> IO_flows = host.Get_io_flows();
 	for (unsigned int stream_id = 0; stream_id < IO_flows.size(); stream_id++) {
 		cout << "Flow " << IO_flows[stream_id]->ID() << " - total requests generated: " << IO_flows[stream_id]->Get_generated_request_count()
-			<< " total requests serviced:" << IO_flows[stream_id]->Get_serviced_request_count() << endl;
+			<< " total requests serviced:" << IO_flows[stream_id]->Get_serviced_request_count() 
+			<< " total trim count:" << IO_flows[stream_id]->Get_serviced_trim_count() << endl;
 		cout << "                   - device response time: " << IO_flows[stream_id]->Get_device_response_time() << " (us)"
 			<< " end-to-end request delay:" << IO_flows[stream_id]->Get_end_to_end_request_delay() << " (us)" << endl;
-		cout << "JS_output, " << IO_flows[stream_id]->ID().substr(IO_flows[stream_id]->ID().find_last_of("/")+1, IO_flows[stream_id]->ID().find_last_of(".")-IO_flows[stream_id]->ID().find_last_of("/")-1) << ", " 
+		cout << "HY_output, " << IO_flows[stream_id]->ID().substr(IO_flows[stream_id]->ID().find_last_of("/")+1, IO_flows[stream_id]->ID().find_last_of(".")-IO_flows[stream_id]->ID().find_last_of("/")-1) << ", " 
 			<< IO_flows[stream_id]->Get_device_response_time() << ", "
 			<< IO_flows[stream_id]->Get_read_device_response_time() << ", "
 			<< IO_flows[stream_id]->Get_max_read_response_time() << ", "
@@ -258,7 +259,12 @@ void collect_results(SSD_Device& ssd, Host_System& host, const char* output_file
 			<< IO_flows[stream_id]->Get_Read_Bandwidth() << ", "
 			<< IO_flows[stream_id]->Get_Write_Bandwidth()
 			<< std::endl; 
+#ifdef HYLEE
+		PRINT_MESSAGE("GC cnt: " << Stats::GC_count)
+		PRINT_MESSAGE("WAF : " << Stats::WAF[0] <<" " << Stats::WAF[1] <<" " << Stats::WAF[2]<<" " << Stats::WAF[3]<<" " << Stats::WAF[4]<<" " << Stats::WAF[5]<<" " 
+		<< Stats::WAF[6]<<" " << Stats::WAF[7]<<" " << Stats::WAF[8] <<" " << Stats::WAF[9])
 	}
+#endif
 }
 
 

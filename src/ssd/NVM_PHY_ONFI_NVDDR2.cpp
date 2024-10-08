@@ -313,7 +313,9 @@ namespace SSD_Components {
 						if (transaction_list.front()->Source == Transaction_Source_Type::GC_WL) {
 							//std::cout << "[DEBUG GC-Send_command_to_chip()] register GC write " << std::endl;
 						}
-
+#ifdef TMP
+						std::cout << "prev firetime: " << Simulator->Time() << std::endl;
+#endif
 						Simulator->Register_sim_event(Simulator->Time() + suspendTime + target_channel->ProgramCommandTime[transaction_list.size()] + data_transfer_time,
 							this, dieBKE, (int)NVDDR2_SimEventType::PROGRAM_CMD_ADDR_DATA_TRANSFERRED);
 					} else {
@@ -456,7 +458,7 @@ namespace SSD_Components {
 				}
 				break;
 			case NVDDR2_SimEventType::ERASE_SETUP_COMPLETED:
-				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID << ": ERASE_SETUP_COMPLETED ")
+				PRINT_MESSAGE("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID << ": ERASE_SETUP_COMPLETED ")
 				targetChip->EndCMDXfer(dieBKE->ActiveCommand);
 				for (auto &tr : dieBKE->ActiveTransactions) {
 					tr->STAT_execution_time = dieBKE->Expected_finish_time - Simulator->Time();
@@ -710,7 +712,7 @@ namespace SSD_Components {
 		}
 		case CMD_ERASE_BLOCK:
 		case CMD_ERASE_BLOCK_MULTIPLANE:
-			DEBUG("Chip " << chip->ChannelID << ", " << chip->ChipID << ": finished erase command")
+			PRINT_MESSAGE("Chip " << chip->ChannelID << ", " << chip->ChipID << ": finished erase command")
 			for (std::list<NVM_Transaction_Flash*>::iterator it = dieBKE->ActiveTransactions.begin();
 				it != dieBKE->ActiveTransactions.end(); it++)
 				_my_instance->broadcastTransactionServicedSignal(*it);

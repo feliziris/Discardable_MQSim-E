@@ -58,6 +58,10 @@ namespace Host_Components
 #endif
 
 		request->Start_LBA = std::strtoull(current_trace_line[ASCIITraceAddressColumn].c_str(), &pEnd, 0);
+		if ((request->Start_LBA == 20472) || (request->Start_LBA == 20568)) {
+			std::cout << "lba: " << request->Start_LBA << std::endl;
+		}
+			
 #ifdef MSR_TRACE
 		request->Start_LBA /= 512;
 #endif
@@ -218,6 +222,9 @@ namespace Host_Components
 		std::cout << "trace start at " << trace_start_time << std::endl;
 		Simulator->Register_sim_event((sim_time_type)trace_start_time, this);
 #else
+#ifdef DEBUG_HY
+		std::cout << "first firetime: " << Simulator->Time() << std::endl;
+#endif
 		Simulator->Register_sim_event(std::strtoll(current_trace_line[ASCIITraceTimeColumn].c_str(), &pEnd, 10), this);
 #endif
 	}
