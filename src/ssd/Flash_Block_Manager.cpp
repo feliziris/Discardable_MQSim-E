@@ -84,8 +84,6 @@ namespace SSD_Components
 #endif
 		}
 
-
-	
 		plane_record->Check_bookkeeping_correctness(page_address);
 	}
 	

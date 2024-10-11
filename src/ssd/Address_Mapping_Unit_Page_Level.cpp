@@ -1350,7 +1350,7 @@ namespace SSD_Components
 
 //// STATIC Plane Allocation.
 // hylee)
-#if 0
+#if 1
 		lpn = transaction->LPA;
 //// Dynamic Plane Allocation.
 #else

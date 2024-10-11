@@ -17,6 +17,7 @@
 #include "SATA_HBA.h"
 #include "../utils/Workload_Statistics.h"
 
+
 namespace Host_Components
 {
 	struct NVMe_Queue_Pair

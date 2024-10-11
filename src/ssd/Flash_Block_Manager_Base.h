@@ -1,6 +1,9 @@
 #ifndef BLOCK_POOL_MANAGER_BASE_H
 #define BLOCK_POOL_MANAGER_BASE_H
 
+#include <fstream>
+#include <iostream>
+#include <string>
 #include <list>
 #include <cstdint>
 #include <queue>
@@ -9,6 +12,7 @@
 #include "../nvm_chip/flash_memory/Physical_Page_Address.h"
 #include "GC_and_WL_Unit_Base.h"
 #include "../nvm_chip/flash_memory/FlashTypes.h"
+using namespace std;
 
 namespace SSD_Components
 {
@@ -118,6 +122,7 @@ namespace SSD_Components
 		void Program_transaction_serviced(const NVM::FlashMemory::Physical_Page_Address& page_address);//Updates the block bookkeeping record
 #ifdef HYLEE
 		void Trim_transaction_serviced(const NVM::FlashMemory::Physical_Page_Address& page_address);
+		void block_utilization();
 #endif
 		bool Is_having_ongoing_program(const NVM::FlashMemory::Physical_Page_Address& block_address);//Cheks if block has any ongoing program request
 		bool Is_page_valid(Block_Pool_Slot_Type* block, flash_page_ID_type page_id);//Make the page invalid in the block bookkeeping record
@@ -127,6 +132,10 @@ namespace SSD_Components
 		double next_logging;
 		bool block_log;
 		void debugging();
+#ifdef HYLEE
+		std::ofstream logFile;
+		bool init = true;
+#endif
 
 	protected:
 		PlaneBookKeepingType ****plane_manager;//Keeps track of plane block usage information

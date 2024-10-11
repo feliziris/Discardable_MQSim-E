@@ -167,6 +167,17 @@ SSD_Device::SSD_Device(Device_Parameter_Set* parameters, std::vector<IO_Flow_Par
 				parameters->Flash_Parameters.Die_No_Per_Chip, parameters->Flash_Parameters.Plane_No_Per_Die,
 				parameters->Flash_Parameters.Block_No_Per_Plane, parameters->Flash_Parameters.Page_No_Per_Block);
 			ftl->BlockManager = fbm;
+			
+			if (fbm->init) {
+				std::time_t now = std::time(nullptr);
+				std::string timeStr = std::ctime(&now);
+				timeStr.erase(timeStr.length() - 1);
+
+				fbm->logFile.open("block.log", std::ofstream::out | std::ofstream::app);
+				fbm->logFile << "[" << timeStr << "]" << std::endl;
+				fbm->init = false;
+		}
+
 
 			//Step 7: create Address_Mapping_Unit
 			SSD_Components::Address_Mapping_Unit_Base* amu;
