@@ -698,6 +698,7 @@ namespace SSD_Components
 				break;
 			}
 			case SSD_Components::GC_Block_Selection_Policy_Type::FIFO:
+			{
 #ifdef ORG_FIFO
 				gc_candidate_block_id = pbke->Block_usage_history.front();
 				pbke->Block_usage_history.pop();
@@ -705,8 +706,9 @@ namespace SSD_Components
 			default:
 				break;
 #else
-				gc_candidate_block_id = 0;		
+				gc_candidate_block_id = 0;
 #endif
+			}
 		}
 		
 		//This should never happen, but we check it here for safty
@@ -714,66 +716,102 @@ namespace SSD_Components
 			PRINT_ERROR("something wrong !! GC");
 		}
 		
-		for (unsigned int plane_idx = 0; plane_idx < plane_no_per_die; plane_idx++){			
-			plane_address.PlaneID = plane_idx;
-			
-			for (unsigned int die_idx = 0; die_idx < die_no_per_chip; die_idx++){
-				plane_address.DieID = die_idx;				
-
-				for (unsigned int chip_idx = 0; chip_idx < chip_no_per_channel; chip_idx++){
-					plane_address.ChipID = chip_idx;
+		switch (block_selection_policy) {
+			case SSD_Components::GC_Block_Selection_Policy_Type::GREEDY:
+			{
+				for (unsigned int plane_idx = 0; plane_idx < plane_no_per_die; plane_idx++){			
+					plane_address.PlaneID = plane_idx;
 					
-					for (unsigned int ch_idx = 0; ch_idx < channel_count; ch_idx++){
-						plane_address.ChannelID = ch_idx;
+					for (unsigned int die_idx = 0; die_idx < die_no_per_chip; die_idx++){
+						plane_address.DieID = die_idx;				
 
-						NVM::FlashMemory::Physical_Page_Address gc_candidate_address(plane_address);
-						gc_candidate_address.BlockID = gc_candidate_block_id;
-						gc_victim_address[victim_count] = gc_candidate_address;
+						for (unsigned int chip_idx = 0; chip_idx < chip_no_per_channel; chip_idx++){
+							plane_address.ChipID = chip_idx;
+							
+							for (unsigned int ch_idx = 0; ch_idx < channel_count; ch_idx++){
+								plane_address.ChannelID = ch_idx;
 
-						pbke = block_manager->Get_plane_bookkeeping_entry(plane_address);
-						Block_Pool_Slot_Type* block = &pbke->Blocks[gc_candidate_block_id];
-						victim_blocks[victim_count++] = block;
+								NVM::FlashMemory::Physical_Page_Address gc_candidate_address(plane_address);
+								gc_candidate_address.BlockID = gc_candidate_block_id;
+								gc_victim_address[victim_count] = gc_candidate_address;
 
-						/* js stream
-						///std::cout << "[DEBUG GC] gc candidate id: " << gc_candidate_block_id<<", Cha,Chip,die,plane: "<<ch_idx<<", "<< chip_idx << ", "<<die_idx << ", " <<plane_idx  << std::endl;
-						if (block->Stream_id != 0) {
-							std::cout << "[ERROR] block->Stream_id ! =0 (select_victim_block()), block_id: "<< gc_candidate_block_id << std::endl;
-							exit(1);
-						}
-						*/
+								pbke = block_manager->Get_plane_bookkeeping_entry(plane_address);
+								Block_Pool_Slot_Type* block = &pbke->Blocks[gc_candidate_block_id];
+								victim_blocks[victim_count++] = block;
 
-						//valid_page_count += ((block->Current_page_write_index*ALIGN_UNIT_SIZE + block->Current_subpage_write_index) - (block->Invalid_subpage_count));
-						valid_page_count += ((block->Current_page_write_index * ALIGN_UNIT_SIZE) - (block->Invalid_subpage_count));
-						//////std::cout << "[DEBUG] subpg index: " << (block->Current_page_write_index * ALIGN_UNIT_SIZE) << ", invalid subpgs cnt: "<< (block->Invalid_subpage_count) <<std::endl;
-						//std::cout << "valid_page_count: " << valid_page_count << std::endl;
-						int count_valid_pages_in_block_tmp = count_valid_pages_in_block(gc_candidate_address, pages_no_per_block);
-						valid_page_count_nand_granu += count_valid_pages_in_block_tmp;
-						////std::cout << "[DEBUG]count_valid_pages_in_block_tmp: " << count_valid_pages_in_block_tmp << std::endl;
-						////std::cout << "[DEBUG] valid_page_count_nand_granu: " << valid_page_count_nand_granu << std::endl;
-						//valid_page_count += (block->Current_page_write_index - block->Invalid_page_count);
+								/* js stream
+								///std::cout << "[DEBUG GC] gc candidate id: " << gc_candidate_block_id<<", Cha,Chip,die,plane: "<<ch_idx<<", "<< chip_idx << ", "<<die_idx << ", " <<plane_idx  << std::endl;
+								if (block->Stream_id != 0) {
+									std::cout << "[ERROR] block->Stream_id ! =0 (select_victim_block()), block_id: "<< gc_candidate_block_id << std::endl;
+									exit(1);
+								}
+								*/
 
-								
-						//Run the state machine to protect against race condition
-						// js question : 여기선 모든 block들을 각각 넣어준다
-						block_manager->GC_WL_started(gc_candidate_address);
-						pbke->Ongoing_erase_operations.insert(gc_candidate_block_id);
+								//valid_page_count += ((block->Current_page_write_index*ALIGN_UNIT_SIZE + block->Current_subpage_write_index) - (block->Invalid_subpage_count));
+								valid_page_count += ((block->Current_page_write_index * ALIGN_UNIT_SIZE) - (block->Invalid_subpage_count));
+								//////std::cout << "[DEBUG] subpg index: " << (block->Current_page_write_index * ALIGN_UNIT_SIZE) << ", invalid subpgs cnt: "<< (block->Invalid_subpage_count) <<std::endl;
+								//std::cout << "valid_page_count: " << valid_page_count << std::endl;
+								int count_valid_pages_in_block_tmp = count_valid_pages_in_block(gc_candidate_address, pages_no_per_block);
+								valid_page_count_nand_granu += count_valid_pages_in_block_tmp;
+								////std::cout << "[DEBUG]count_valid_pages_in_block_tmp: " << count_valid_pages_in_block_tmp << std::endl;
+								////std::cout << "[DEBUG] valid_page_count_nand_granu: " << valid_page_count_nand_granu << std::endl;
+								//valid_page_count += (block->Current_page_write_index - block->Invalid_page_count);
 
-						// js question : what is this?
-						if (victim_count > 1)
-						{
-							if (victim_blocks[victim_count-1]->Stream_id != victim_blocks[victim_count-2]->Stream_id)
-							{
-								PRINT_MESSAGE("Wrong Error......"<< victim_count-1 <<" "<< victim_blocks[victim_count-1]->Stream_id << "  "<< victim_blocks[victim_count-2]->Stream_id);
-								PRINT_MESSAGE("Block Id "<< victim_count-1 <<" "<< victim_blocks[victim_count-1]->BlockID << "  "<< victim_blocks[victim_count-2]->BlockID);								
+										
+								//Run the state machine to protect against race condition
+								// js question : 여기선 모든 block들을 각각 넣어준다
+								block_manager->GC_WL_started(gc_candidate_address);
+								pbke->Ongoing_erase_operations.insert(gc_candidate_block_id);
+
+								// js question : what is this?
+								if (victim_count > 1)
+								{
+									if (victim_blocks[victim_count-1]->Stream_id != victim_blocks[victim_count-2]->Stream_id)
+									{
+										PRINT_MESSAGE("Wrong Error......"<< victim_count-1 <<" "<< victim_blocks[victim_count-1]->Stream_id << "  "<< victim_blocks[victim_count-2]->Stream_id);
+										PRINT_MESSAGE("Block Id "<< victim_count-1 <<" "<< victim_blocks[victim_count-1]->BlockID << "  "<< victim_blocks[victim_count-2]->BlockID);								
+									}
+								}
+
+								total_pages_count += pbke->Total_pages_count;
+								valid_pages_count += pbke->Valid_pages_count;						
 							}
 						}
-
-						total_pages_count += pbke->Total_pages_count;
-						valid_pages_count += pbke->Valid_pages_count;						
 					}
 				}
+				break;
+			}
+			case SSD_Components::GC_Block_Selection_Policy_Type::FIFO:
+			{
+				for (unsigned int plane_idx = 0; plane_idx < plane_no_per_die; plane_idx++){			
+					plane_address.PlaneID = plane_idx;
+					
+					for (unsigned int die_idx = 0; die_idx < die_no_per_chip; die_idx++){
+						plane_address.DieID = die_idx;				
+
+						for (unsigned int chip_idx = 0; chip_idx < chip_no_per_channel; chip_idx++){
+							plane_address.ChipID = chip_idx;
+							
+							for (unsigned int ch_idx = 0; ch_idx < channel_count; ch_idx++){
+								plane_address.ChannelID = ch_idx;
+
+								NVM::FlashMemory::Physical_Page_Address gc_candidate_address(plane_address);
+								pbke = block_manager->Get_plane_bookkeeping_entry(plane_address);
+								gc_candidate_block_id = pbke->Block_usage_history.front();
+								pbke->Block_usage_history.pop();
+
+								gc_candidate_address.BlockID = gc_candidate_block_id;
+								gc_victim_address[victim_count] = gc_candidate_address;
+
+								Block_Pool_Slot_Type* block = &pbke->Blocks[gc_candidate_block_id];
+								victim_blocks[victim_count++] = block;
+							}
+						}
+					}
+				}	
 			}
 		}
+
 
 		Stats::Utilization = (double)valid_pages_count / total_pages_count; // informaive
 
