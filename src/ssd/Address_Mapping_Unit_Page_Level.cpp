@@ -759,8 +759,9 @@ namespace SSD_Components
 	bool Address_Mapping_Unit_Page_Level::translate_lpa_to_ppa(stream_id_type streamID, NVM_Transaction_Flash* transaction)
 	{
 		PPA_type ppa = domains[streamID]->Get_ppa(ideal_mapping_table, streamID, transaction->LPA);
-		if ((transaction->LPA == 2559) || (transaction->LPA == 2571))
-			std::cout << "lpa " << transaction->LPA << " ppa " << ppa << std::endl;
+		// hylee) for debug
+		// if ((transaction->LPA == 2559) || (transaction->LPA == 2571))
+		// 	std::cout << "lpa " << transaction->LPA << " ppa " << ppa << std::endl;
 
 		if (transaction->Type == Transaction_Type::READ) {
 			//if (ppa == NO_PPA) std::cout << "lpa does not exists in table" << std::endl;
@@ -1350,7 +1351,7 @@ namespace SSD_Components
 
 //// STATIC Plane Allocation.
 // hylee)
-#if 1
+#if 0
 		lpn = transaction->LPA;
 //// Dynamic Plane Allocation.
 #else

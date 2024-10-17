@@ -58,9 +58,6 @@ namespace Host_Components
 #endif
 
 		request->Start_LBA = std::strtoull(current_trace_line[ASCIITraceAddressColumn].c_str(), &pEnd, 0);
-		if ((request->Start_LBA == 20472) || (request->Start_LBA == 20568)) {
-			std::cout << "lba: " << request->Start_LBA << std::endl;
-		}
 			
 #ifdef MSR_TRACE
 		request->Start_LBA /= 512;

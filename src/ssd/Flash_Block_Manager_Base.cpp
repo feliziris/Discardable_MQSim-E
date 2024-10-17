@@ -158,8 +158,8 @@ namespace SSD_Components
 		}
 		Free_block_pool.erase(Free_block_pool.begin());
 		new_block->Stream_id = stream_id;
-		// new_block->Holds_mapping_data = for_mapping_data;
-		new_block->Holds_mapping_data = false; // hylee
+		new_block->Holds_mapping_data = for_mapping_data;
+		// new_block->Holds_mapping_data = false; // hylee
 		Block_usage_history.push(new_block->BlockID);
 		//std::cout << "Get_a_free_block: remain size(): " << Free_block_pool.size() << std::endl;
 		return new_block;

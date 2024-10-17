@@ -90,7 +90,7 @@ namespace SSD_Components
 			token = intial_token;
 			return;
 		}
-		
+		std::cout << "free block pool size: " << pbke->Get_free_block_pool_size() << std::endl; // hylee
 		switch (gc_status)
 		{
 			case GCStatus::IDLE:
@@ -706,7 +706,7 @@ namespace SSD_Components
 			default:
 				break;
 #else
-				gc_candidate_block_id = 0;
+				// gc_candidate_block_id = 0;
 #endif
 			}
 		}
@@ -783,6 +783,8 @@ namespace SSD_Components
 			}
 			case SSD_Components::GC_Block_Selection_Policy_Type::FIFO:
 			{
+				flash_block_ID_type block_id = 0;
+
 				for (unsigned int plane_idx = 0; plane_idx < plane_no_per_die; plane_idx++){			
 					plane_address.PlaneID = plane_idx;
 					
@@ -797,14 +799,47 @@ namespace SSD_Components
 
 								NVM::FlashMemory::Physical_Page_Address gc_candidate_address(plane_address);
 								pbke = block_manager->Get_plane_bookkeeping_entry(plane_address);
-								gc_candidate_block_id = pbke->Block_usage_history.front();
-								pbke->Block_usage_history.pop();
+								
+								while(1) {
+									block_id = pbke->Block_usage_history.front();
+									pbke->Block_usage_history.pop();
+
+									if ((pbke->Blocks[block_id].Current_page_write_index == pages_no_per_block)
+									&& is_safe_gc_wl_candidate(pbke, block_id)) {
+										gc_candidate_block_id = block_id;
+										break;
+									}
+								}
 
 								gc_candidate_address.BlockID = gc_candidate_block_id;
 								gc_victim_address[victim_count] = gc_candidate_address;
 
 								Block_Pool_Slot_Type* block = &pbke->Blocks[gc_candidate_block_id];
 								victim_blocks[victim_count++] = block;
+
+								valid_page_count += ((block->Current_page_write_index * ALIGN_UNIT_SIZE) - (block->Invalid_subpage_count));
+
+								int count_valid_pages_in_block_tmp = count_valid_pages_in_block(gc_candidate_address, pages_no_per_block);
+								
+								valid_page_count_nand_granu += count_valid_pages_in_block_tmp;
+										
+								//Run the state machine to protect against race condition
+								// js question : 여기선 모든 block들을 각각 넣어준다
+								block_manager->GC_WL_started(gc_candidate_address);
+								pbke->Ongoing_erase_operations.insert(gc_candidate_block_id);
+
+								// js question : what is this?
+								if (victim_count > 1)
+								{
+									if (victim_blocks[victim_count-1]->Stream_id != victim_blocks[victim_count-2]->Stream_id)
+									{
+										PRINT_MESSAGE("Wrong Error......"<< victim_count-1 <<" "<< victim_blocks[victim_count-1]->Stream_id << "  "<< victim_blocks[victim_count-2]->Stream_id);
+										PRINT_MESSAGE("Block Id "<< victim_count-1 <<" "<< victim_blocks[victim_count-1]->BlockID << "  "<< victim_blocks[victim_count-2]->BlockID);								
+									}
+								}
+
+								total_pages_count += pbke->Total_pages_count;
+								valid_pages_count += pbke->Valid_pages_count;
 							}
 						}
 					}
@@ -816,7 +851,7 @@ namespace SSD_Components
 		Stats::Utilization = (double)valid_pages_count / total_pages_count; // informaive
 
 		Stats::GC_count++;
-		if (Stats::GC_count % 10 == 0) // hylee) 100
+		if (Stats::GC_count % 30 == 0) // hylee) 100
 		{
 			Stats::WAF[Stats::WAF_index] = (double)( (Stats::Physical_write_count - Stats::Prev_physical_write_count))/(Stats::Host_write_count - Stats::Prev_host_write_count);
 			Stats::WAI[Stats::WAF_index] = (double)(Stats::Physical_write_count - Stats::Prev_physical_write_count)/(Stats::Host_write_count - Stats::Prev_host_write_count);
@@ -824,10 +859,12 @@ namespace SSD_Components
 			WAI[Stats::WAF_index % 10] = Stats::WAI[Stats::WAF_index];
 			WAF[Stats::WAF_index % 10] = Stats::WAF[Stats::WAF_index];
 
+			std::cout << "prev physical write cnt: " << Stats::Prev_physical_write_count << " physical wr cnt: " << Stats::Physical_write_count << std::endl; // hylee
+			std::cout << "prev host wr cnt: " << Stats::Host_write_count << " host wr cnt: " << Stats::Prev_host_write_count << std::endl;
+
 			Stats::Prev_physical_write_count = Stats::Physical_write_count;
-			std::cout << "physical write cnt: " << Stats::Physical_write_count << std::endl; // hylee
 			Stats::Prev_host_write_count = Stats::Host_write_count;
-			std::cout << "host wr cnt: " << Stats::Host_write_count << std::endl;
+
 			Stats::WAF_index++;
 			
 			if (Stats::GC_count % 5 == 0) {
