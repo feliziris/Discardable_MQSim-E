@@ -2,6 +2,7 @@
 #include "../utils/StringTools.h"
 #include "ASCII_Trace_Definition.h"
 #include "../utils/DistributionTypes.h"
+#include "../ssd/Stats.h"
 
 
 
@@ -40,6 +41,8 @@ namespace Host_Components
 		if (current_trace_line[ASCIITraceTypeColumn].compare(ASCIITraceWriteCode) == 0) {
 			request->Type = Host_IO_Request_Type::WRITE;
 			STAT_generated_write_request_count++;
+			SSD_Components::Stats::Host_write_count++;
+			SSD_Components::Stats::Physical_write_count++;
 		} else if (current_trace_line[ASCIITraceTypeColumn].compare(ASCIITraceTrimCode) == 0) { // hylee
 			request->Type = Host_IO_Request_Type::TRIM;
 			STAT_generated_trim_request_count++;
@@ -486,10 +489,10 @@ namespace Host_Components
 		stats.Average_inter_arrival_time_nano_sec = sum_inter_arrival / stats.Total_generated_reqeusts;
 
 		// js debug
-		std::cout << "trace end at " << last_request_arrival_time << std::endl;
-		std::cout<<"avg interval (us) " <<stats.Average_inter_arrival_time_nano_sec/1000<<std::endl;
-		int sec_win = (last_request_arrival_time-trace_start_time) / 1000000000 + 1;
-		std::cout<<"IOPS " <<stats.Total_generated_reqeusts/(double)sec_win<<std::endl;
+		// std::cout << "trace end at " << last_request_arrival_time << std::endl;
+		// std::cout<<"avg interval (us) " <<stats.Average_inter_arrival_time_nano_sec/1000<<std::endl;
+		// int sec_win = (last_request_arrival_time-trace_start_time) / 1000000000 + 1;
+		// std::cout<<"IOPS " <<stats.Total_generated_reqeusts/(double)sec_win<<std::endl;
 
 		stats.Initial_occupancy_ratio = initial_occupancy_ratio;
 		stats.Replay_no = total_replay_no;

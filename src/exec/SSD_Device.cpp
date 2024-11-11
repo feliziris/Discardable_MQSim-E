@@ -173,7 +173,7 @@ SSD_Device::SSD_Device(Device_Parameter_Set* parameters, std::vector<IO_Flow_Par
 				std::string timeStr = std::ctime(&now);
 				timeStr.erase(timeStr.length() - 1);
 
-				fbm->logFile.open("block.log", std::ofstream::out | std::ofstream::app);
+				fbm->logFile.open("block.log", std::ofstream::out);
 				fbm->logFile << "[" << timeStr << "]" << std::endl;
 				fbm->init = false;
 		}
@@ -283,7 +283,12 @@ SSD_Device::SSD_Device(Device_Parameter_Set* parameters, std::vector<IO_Flow_Par
 				parameters->Flash_Channel_Count, parameters->Chip_No_Per_Channel,
 				parameters->Flash_Parameters.Die_No_Per_Chip, parameters->Flash_Parameters.Plane_No_Per_Die,
 				parameters->Flash_Parameters.Block_No_Per_Plane, parameters->Flash_Parameters.Page_No_Per_Block,
-				parameters->Flash_Parameters.Page_Capacity / SECTOR_SIZE_IN_BYTE, parameters->Use_Copyback_for_GC, max_rho, 3,
+				parameters->Flash_Parameters.Page_Capacity / SECTOR_SIZE_IN_BYTE, parameters->Use_Copyback_for_GC, max_rho, 
+#if 1
+				(unsigned int)(parameters->Flash_Parameters.Block_No_Per_Plane * parameters->Overprovisioning_Ratio),
+#else
+				3,
+#endif
 				parameters->Seed++);
 			Simulator->AddObject(gcwl);
 			fbm->Set_GC_and_WL_Unit(gcwl);

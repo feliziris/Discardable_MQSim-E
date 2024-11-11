@@ -36,17 +36,17 @@ namespace SSD_Components
 
 		flash_page_ID_type Current_subpage_write_index;
 
-		flash_block_ID_type BlockID;
-		flash_page_ID_type Current_page_write_index;
+		flash_block_ID_type BlockID = 0;
+		flash_page_ID_type Current_page_write_index = 0;
 		Block_Service_Status Current_status;
-		unsigned int Invalid_page_count;
-		unsigned int Invalid_subpage_count; //total Invalid subpage count in a block
-		unsigned int Erase_count;
+		unsigned int Invalid_page_count = 0;
+		unsigned int Invalid_subpage_count = 0; //total Invalid subpage count in a block
+		unsigned int Erase_count = 0;
 		static unsigned int Page_vector_size;
-		uint64_t* Invalid_page_bitmap;//A bit sequence that keeps track of valid/invalid status of pages in the block. A "0" means valid, and a "1" means invalid.
+		uint64_t* Invalid_page_bitmap = nullptr;//A bit sequence that keeps track of valid/invalid status of pages in the block. A "0" means valid, and a "1" means invalid.
 
 		static unsigned int SubPage_vector_size;
-		uint64_t* Invalid_Subpage_bitmap;
+		uint64_t* Invalid_Subpage_bitmap = nullptr;
 
 
 
@@ -56,10 +56,10 @@ namespace SSD_Components
 		bool Has_ongoing_gc_wl = false;
 		NVM_Transaction_Flash_ER* Erase_transaction;
 		bool Hot_block = false;//Used for hot/cold separation mentioned in the "On the necessity of hot and cold data identification to reduce the write amplification in flash-based SSDs", Perf. Eval., 2014.
-		int Ongoing_user_read_count;
-		int Ongoing_user_program_count;
+		int Ongoing_user_read_count = 0;
+		int Ongoing_user_program_count = 0;
 #ifdef HYLEE
-		int Serviced_user_trim_count;
+		int Serviced_user_trim_count = 0;
 #endif
 		void Erase();
 	};
@@ -67,18 +67,19 @@ namespace SSD_Components
 	class PlaneBookKeepingType
 	{
 	public:
-		unsigned int Total_pages_count;
-		unsigned int Total_subpages_count;
-		unsigned int Free_pages_count;
-		unsigned int Free_subpages_count;
-		unsigned int Valid_pages_count;
-		unsigned int Valid_subpages_count;
-		unsigned int Invalid_pages_count;
-		unsigned int Invalid_subpages_count;
-		Block_Pool_Slot_Type* Blocks;
+		unsigned int Total_pages_count = 0;
+		unsigned int Total_subpages_count = 0;
+		unsigned int Free_pages_count = 0;
+		unsigned int Free_subpages_count = 0;
+		unsigned int Valid_pages_count = 0;
+		unsigned int Valid_subpages_count = 0;
+		unsigned int Invalid_pages_count = 0;
+		unsigned int Invalid_subpages_count = 0;
+
+		Block_Pool_Slot_Type* Blocks = nullptr;
 		std::multimap<unsigned int, Block_Pool_Slot_Type*> Free_block_pool;
-		Block_Pool_Slot_Type** Data_wf, ** GC_wf; //The write frontier blocks for data and GC pages. MQSim adopts Double Write Frontier approach for user and GC writes which is shown very advantages in: B. Van Houdt, "On the necessity of hot and cold data identification to reduce the write amplification in flash - based SSDs", Perf. Eval., 2014
-		Block_Pool_Slot_Type** Translation_wf; //The write frontier blocks for translation GC pages
+		Block_Pool_Slot_Type** Data_wf, ** GC_wf = nullptr; //The write frontier blocks for data and GC pages. MQSim adopts Double Write Frontier approach for user and GC writes which is shown very advantages in: B. Van Houdt, "On the necessity of hot and cold data identification to reduce the write amplification in flash - based SSDs", Perf. Eval., 2014
+		Block_Pool_Slot_Type** Translation_wf = nullptr; //The write frontier blocks for translation GC pages
 		std::queue<flash_block_ID_type> Block_usage_history;//A fifo queue that keeps track of flash blocks based on their usage history
 		std::set<flash_block_ID_type> Ongoing_erase_operations;
 		Block_Pool_Slot_Type* Get_a_free_block(stream_id_type stream_id, bool for_mapping_data);

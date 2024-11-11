@@ -52,6 +52,7 @@ namespace SSD_Components
 
 	
 	unsigned long Stats::Host_write_count = 0;
+	// double Stats::Host_write_count = 0;
 	unsigned long Stats::Host_write_count_subpgs = 0;
 	unsigned long Stats::Prev_host_write_count = 0;
 	

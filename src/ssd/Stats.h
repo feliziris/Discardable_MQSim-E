@@ -50,10 +50,12 @@ namespace SSD_Components
 		static double Reliefed[MAX_WAF_HISTORY];
 			
 		static unsigned long Host_write_count;
+		// static double Host_write_count;
 		static unsigned long Host_write_count_subpgs;
 		static unsigned long Prev_host_write_count;
 		
 		static unsigned long Physical_write_count;
+		// static double Physical_write_count;
 		static unsigned long Physical_write_count_subpg;
 		static unsigned long Prev_physical_write_count;
 		static unsigned int Interval_Physical_write_count;

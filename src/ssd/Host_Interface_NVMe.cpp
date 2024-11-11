@@ -3,6 +3,7 @@
 #include "Host_Interface_NVMe.h"
 #include "NVM_Transaction_Flash_RD.h"
 #include "NVM_Transaction_Flash_WR.h"
+#include "Stats.h"
 
 #ifdef HYLEE
 #include "NVM_Transaction_Flash_TR.h"
@@ -88,6 +89,10 @@ namespace SSD_Components
 	inline void Input_Stream_Manager_NVMe::Handle_arrived_write_data(User_Request* request)
 	{
 		segment_user_request(request);
+
+		//if (request->Start_LBA == 50432)
+		//	std::cout << "stop" << std::endl;
+
 		((Host_Interface_NVMe*)host_interface)->broadcast_user_request_arrival_signal(request);
 	}
 
@@ -205,7 +210,7 @@ namespace SSD_Components
 				transaction_size = req_size - hanled_sectors_count;
 			}
 			LPA_type lpa = internal_lsa / host_interface->sectors_per_subpage;
-			std::cout << "lpa " << lpa << std::endl;
+			// std::cout << "lpa " << lpa << std::endl;
 #ifdef HYLEE
 			if (user_request->Type == UserRequestType::TRIM) { // hylee
 				access_status_bitmap = 0;

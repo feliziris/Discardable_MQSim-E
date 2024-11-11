@@ -263,6 +263,7 @@ void collect_results(SSD_Device& ssd, Host_System& host, const char* output_file
 		PRINT_MESSAGE("GC cnt: " << Stats::GC_count)
 		PRINT_MESSAGE("WAF : " << Stats::WAF[0] <<" " << Stats::WAF[1] <<" " << Stats::WAF[2]<<" " << Stats::WAF[3]<<" " << Stats::WAF[4]<<" " << Stats::WAF[5]<<" " 
 		<< Stats::WAF[6]<<" " << Stats::WAF[7]<<" " << Stats::WAF[8] <<" " << Stats::WAF[9])
+		PRINT_MESSAGE("physical write: " << Stats::Physical_write_count << " host write: " << Stats::Host_write_count)
 	}
 #endif
 }

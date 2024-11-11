@@ -84,13 +84,17 @@ namespace SSD_Components
 		if (pbke->Get_free_block_pool_size() < 2) {
 			// js debug
 			std::cout<<"low free block"<<std::endl;
-			//std::cout << "[pages: " << pbke->Get_free_block_pool_size();// << ", id: " << pbke->Free_block_pool.begin()->second->BlockID << "] ";
 		}
-		if ((free_block_count > block_pool_gc_threshold) && (gc_status != GCStatus::WRITE_STATE)) {
+
+		if ((free_block_pool_size > block_pool_gc_threshold) && (gc_status != GCStatus::WRITE_STATE)) {
 			token = intial_token;
 			return;
 		}
-		std::cout << "free block pool size: " << pbke->Get_free_block_pool_size() << std::endl; // hylee
+
+#if 1
+		std::cout << "when gc starts free block pool size: " << free_block_pool_size << std::endl; // hylee
+#endif
+		assert(victim_blocks!=NULL);
 		switch (gc_status)
 		{
 			case GCStatus::IDLE:
@@ -111,9 +115,14 @@ namespace SSD_Components
 
 						pbke = block_manager->Get_plane_bookkeeping_entry(address);
 
+						std::cout << "before add : " << pbke->Get_free_block_pool_size() << std::endl;
+
 						pbke->Ongoing_erase_operations.erase(pbke->Ongoing_erase_operations.find(block->BlockID));
 						block_manager->Add_erased_block_to_pool(address);
+						reclaimed_count++;
 						block_manager->GC_WL_finished(address);
+
+						std::cout << "after add : " << pbke->Get_free_block_pool_size() << std::endl;
 
 						//std::cout << "********************************************* Total page copies # for GC (in subpg): " << total_gc_rw_interval_ER << std::endl;
 						total_gc_rw_interval_ER = 0;
@@ -127,10 +136,25 @@ namespace SSD_Components
 						Total_gc_executions_for_debug = Stats::Total_gc_executions; //used in IO_Flow_Synthetic.cpp
 					}
 
-					Stats::Physical_write_count += gc_unit_count * pages_no_per_block;
+					//Stats::Physical_write_count += gc_unit_count * pages_no_per_block;
 					Stats::Physical_write_count_subpg += gc_unit_count * pages_no_per_block * ALIGN_UNIT_SIZE;
 					Stats::Interval_Physical_write_count += gc_unit_count * pages_no_per_block;
+
+					Stats::GC_count++;
+					Stats::WAF[Stats::WAF_index] = (double)( Stats::Physical_write_count/ (double)Stats::Host_write_count);
+					Stats::WAF_index++;
+					std::cout << "physical: " << Stats::Physical_write_count << " host: " << Stats::Host_write_count << std::endl;
+					WAF[Stats::WAF_index % 10] = Stats::WAF[Stats::WAF_index];
+
+					if (reclaimed_count == 2) {
+						reclaimed_count = 0;
+						std::cout << "free block count " << pbke->Get_free_block_pool_size() << std::endl;
+						break;
+					}
 				}
+#ifdef HYLEE
+				block_manager->block_utilization();
+#endif
 
 				//victim selection
 				if (select_victim_block() == 0){
@@ -145,6 +169,7 @@ namespace SSD_Components
 				
 			case GCStatus::READ_STATE:
 				if (gc_pending_write_count >= gc_unit_count / 2) {
+					// std::cout << "gc pending write count " << gc_pending_write_count << std::endl;
 					break;
 				}
 
@@ -153,7 +178,8 @@ namespace SSD_Components
 				/** break through **/
 
 			case GCStatus::WRITE_STATE:
-				if (gc_pending_read_count == 0){
+				if (gc_pending_read_count == 0) {
+
 					write_pages();
 					
 					Stats::Consecutive_gc_write++;
@@ -302,18 +328,12 @@ namespace SSD_Components
 
 		//cur_page_offset, read_count = NAND FLASH page unit count, cur_subpage_offset = Mapping granularity unit count
 		for (; cur_page_offset < pages_no_per_block; cur_page_offset++) {
+			std::cout << "pg idx " << cur_page_offset << std::endl;
+
 			//parallel process across all planes in SSD. 
-			//std::cout << "[DEBUG GC-read_pages()] cur_page_offset: " << cur_page_offset<< std::endl;
 			for (int victim_index = 0; victim_index < gc_unit_count; victim_index++) {				
 				block = victim_blocks[victim_index];
-				/* js stream
-				// js question : victim을 선정할 때 stream을 확인하고 선정했는가?
-				if (block->Stream_id != 0) {
-					std::cout << "[DOODU ERROR] Stream_id ! =0 (read_pages()) " << std::endl;
-					exit(1);
-				}
-				*/
-				// js question 
+				assert(block!=NULL);
 #if DEBUG_GC_READ
 				for (cur_subpage_offset; cur_subpage_offset < ALIGN_UNIT_SIZE; cur_subpage_offset++) {
 #else
@@ -323,15 +343,9 @@ namespace SSD_Components
 					//std::cout << "cur_subpage_offset: " << cur_subpage_offset << std::endl;
 
 					if (block_manager->Is_Subpage_valid(block, cur_page_offset, cur_subpage_offset)) {
-
 						gc_candidate_address = gc_victim_address[victim_index];
 						gc_candidate_address.PageID = cur_page_offset;
 						gc_candidate_address.subPageID = cur_subpage_offset;
-						//std::cout << "[DEBUG GC-read_pages()] cur_page_offset: " << gc_candidate_address.ChannelID << ", " << gc_candidate_address.ChipID << ", " << gc_candidate_address.DieID << ", " << gc_candidate_address.PlaneID << ", " << gc_candidate_address.BlockID << ", pg" << gc_candidate_address.PageID << ", " << gc_candidate_address.subPageID << std::endl;
-						//stop_increase_page_offset = true;
-
-						Stats::Total_page_movements_for_gc++;
-						Total_page_movements_for_debug = Stats::Total_page_movements_for_gc;
 
 						if (use_copyback) {
 							PRINT_ERROR("Check 4k mapping implementation when use copyback. Didn't consider copyback when implement 4k mapping scheme");
@@ -342,7 +356,7 @@ namespace SSD_Components
 						}
 						else {
 							//std::cout << "[DEBUG GC] gc read subpg ppa :" << address_mapping_unit->Convert_address_to_ppa(gc_candidate_address) << std::endl;
-							gc_read = new NVM_Transaction_Flash_RD(Transaction_Source_Type::GC_WL, block->Stream_id, sector_no_per_page / ALIGN_UNIT_SIZE * SECTOR_SIZE_IN_BYTE,
+ 							gc_read = new NVM_Transaction_Flash_RD(Transaction_Source_Type::GC_WL, block->Stream_id, sector_no_per_page / ALIGN_UNIT_SIZE * SECTOR_SIZE_IN_BYTE,
 								NO_LPA, address_mapping_unit->Convert_address_to_ppa(gc_candidate_address), gc_candidate_address, NULL, 0, NULL, 0, INVALID_TIME_STAMP);
 							gc_write = new NVM_Transaction_Flash_WR(Transaction_Source_Type::GC_WL, block->Stream_id, sector_no_per_page / ALIGN_UNIT_SIZE * SECTOR_SIZE_IN_BYTE,
 								NO_LPA, NO_PPA, gc_candidate_address, NULL, 0, gc_read, 0, INVALID_TIME_STAMP);
@@ -351,15 +365,16 @@ namespace SSD_Components
 							gc_read->RelatedWrite = gc_write;
 							waiting_submit_transaction.push_back(gc_read);
 							total_gc_rw_interval_ER++;
-
-							/* js stream
-							if (gc_read->Stream_id != 0) {
-								std::cout << "[DOODU ERROR] Stream_id (read_pages()): " << gc_read->Stream_id << std::endl;
-								exit(1);
-							}
-							*/
 						}
 						read_count_subpg++;
+#ifdef HYLEE
+						// for checking physical write count
+						if (read_count_subpg % ALIGN_UNIT_SIZE == 0) {
+							Stats::Physical_write_count += 1;
+							Stats::Total_page_movements_for_gc++;
+						}
+#endif
+
 #if DEBUG_GC_READ
 						if ((read_count_subpg == gc_unit_count * ALIGN_UNIT_SIZE)) {
 							break;
@@ -397,7 +412,10 @@ namespace SSD_Components
 
 		} //end of for (; cur_page_offset ; ;)
 
+		std::cout << "page movement gc: " << Stats::Total_page_movements_for_gc << std::endl;
+
 		if (cur_page_offset == pages_no_per_block && cur_subpage_offset == ALIGN_UNIT_SIZE) {
+			std::cout << "1 block complete" << std::endl;
 			read_subpg_offset_reaches_end = true;
 		}
 
@@ -604,8 +622,8 @@ namespace SSD_Components
 				unsigned int cur_invalid_subpage_count;
 				for (flash_block_ID_type block_id = 0; block_id < block_no_per_plane; block_id++) {
 					cur_invalid_subpage_count = get_valid_subpage_count(block_id);
-					std::cout << "[DEBUG GC] blk id:"<<block_id<<", Valid subpg_cnt: " << std::dec << cur_invalid_subpage_count << ", Write idx: " << pbke->Blocks[block_id].Current_page_write_index << std::endl; // hylee
-					std::cout << "stream id check " << pbke->Blocks[block_id].Stream_id << std::endl; // hylee
+					//std::cout << "[DEBUG GC] blk id:"<<block_id<<", Valid subpg_cnt: " << std::dec << cur_invalid_subpage_count << ", Write idx: " << pbke->Blocks[block_id].Current_page_write_index << std::endl; // hylee
+					//std::cout << "stream id check " << pbke->Blocks[block_id].Stream_id << std::endl; // hylee
 
 					// js question : gc victim 선정할 때 stream 관련 확인은 없음
 					assert(pbke->Blocks[block_id].Stream_id == 0); // hylee
@@ -799,16 +817,36 @@ namespace SSD_Components
 
 								NVM::FlashMemory::Physical_Page_Address gc_candidate_address(plane_address);
 								pbke = block_manager->Get_plane_bookkeeping_entry(plane_address);
-								
+
+								// bool is_okay = false;
 								while(1) {
 									block_id = pbke->Block_usage_history.front();
 									pbke->Block_usage_history.pop();
-
+#if 1
+									std::cout << "blk ptr " << &(pbke->Blocks[block_id])
+									<< "blk cur page write idx " << pbke->Blocks[block_id].Current_page_write_index << std::endl;
 									if ((pbke->Blocks[block_id].Current_page_write_index == pages_no_per_block)
 									&& is_safe_gc_wl_candidate(pbke, block_id)) {
 										gc_candidate_block_id = block_id;
 										break;
 									}
+#else
+									if (pbke->Blocks[block_id].Current_page_write_index == pages_no_per_block) {
+										stream_id_type stream_id = pbke->Blocks[block_id].Stream_id;
+										assert(stream_id == 0);
+										
+										if ((&pbke->Blocks[block_id]) == pbke->Data_wf[stream_id]
+										|| (&pbke->Blocks[block_id]) == pbke->Translation_wf[stream_id]
+										|| (&pbke->Blocks[block_id]) == pbke->GC_wf[stream_id]) {
+											is_okay = false;
+										} else if (pbke->Blocks[block_id].Ongoing_user_program_count > 0){
+											is_okay = false;
+										} else if (pbke->Blocks[block_id].Has_ongoing_gc_wl) {
+											is_okay = false;
+										} 
+									}
+									if (is_okay) gc_candidate_block_id = block_id;
+#endif
 								}
 
 								gc_candidate_address.BlockID = gc_candidate_block_id;
@@ -850,31 +888,28 @@ namespace SSD_Components
 
 		Stats::Utilization = (double)valid_pages_count / total_pages_count; // informaive
 
-		Stats::GC_count++;
-		if (Stats::GC_count % 30 == 0) // hylee) 100
-		{
-			Stats::WAF[Stats::WAF_index] = (double)( (Stats::Physical_write_count - Stats::Prev_physical_write_count))/(Stats::Host_write_count - Stats::Prev_host_write_count);
-			Stats::WAI[Stats::WAF_index] = (double)(Stats::Physical_write_count - Stats::Prev_physical_write_count)/(Stats::Host_write_count - Stats::Prev_host_write_count);
+		// Stats::GC_count++;
+		// if (Stats::GC_count % 1 == 0) // hylee) 100
+		// {
+		// 	Stats::WAF[Stats::WAF_index] = (double)( Stats::Physical_write_count/Stats::Host_write_count);
+		// 	Stats::WAI[Stats::WAF_index] = (double)(Stats::Physical_write_count/Stats::Host_write_count);
 
-			WAI[Stats::WAF_index % 10] = Stats::WAI[Stats::WAF_index];
-			WAF[Stats::WAF_index % 10] = Stats::WAF[Stats::WAF_index];
+		// 	WAI[Stats::WAF_index % 10] = Stats::WAI[Stats::WAF_index];
+		// 	WAF[Stats::WAF_index % 10] = Stats::WAF[Stats::WAF_index];
 
-			std::cout << "prev physical write cnt: " << Stats::Prev_physical_write_count << " physical wr cnt: " << Stats::Physical_write_count << std::endl; // hylee
-			std::cout << "prev host wr cnt: " << Stats::Host_write_count << " host wr cnt: " << Stats::Prev_host_write_count << std::endl;
+		// 	// Stats::Prev_physical_write_count = Stats::Physical_write_count;
+		// 	// Stats::Prev_host_write_count = Stats::Host_write_count;
 
-			Stats::Prev_physical_write_count = Stats::Physical_write_count;
-			Stats::Prev_host_write_count = Stats::Host_write_count;
-
-			Stats::WAF_index++;
+		// 	Stats::WAF_index++;
 			
-			if (Stats::GC_count % 5 == 0) {
-				PRINT_MESSAGE(" WAF : " << WAF[0] <<" " << WAF[1] <<" " << WAF[2]<<" " << WAF[3]<<" " << WAF[4]<<" " << WAF[5]<<" " << WAF[6]<<" " << WAF[7]<<" " << WAF[8] <<" " << WAF[9]);
-				//PRINT_MESSAGE(" WAI : " << WAI[0] <<" " << WAI[1] <<" " << WAI[2]<<" " << WAI[3]<<" " << WAI[4]<<" " << WAI[5]<<" " << WAI[6]<<" " << WAI[7]<<" " << WAI[8] <<" " << WAI[9]);
+		// 	if (Stats::GC_count % 1 == 0) {
+		// 		PRINT_MESSAGE(" WAF : " << WAF[0] <<" " << WAF[1] <<" " << WAF[2]<<" " << WAF[3]<<" " << WAF[4]<<" " << WAF[5]<<" " << WAF[6]<<" " << WAF[7]<<" " << WAF[8] <<" " << WAF[9]);
+		// 		//PRINT_MESSAGE(" WAI : " << WAI[0] <<" " << WAI[1] <<" " << WAI[2]<<" " << WAI[3]<<" " << WAI[4]<<" " << WAI[5]<<" " << WAI[6]<<" " << WAI[7]<<" " << WAI[8] <<" " << WAI[9]);
 				
-				//PRINT_MESSAGE("WAF index  " << Stats::WAF_index << " Is saturated " << is_WAF_saturated(g_diff) << " diff " << g_diff);
-			}
+		// 		//PRINT_MESSAGE("WAF index  " << Stats::WAF_index << " Is saturated " << is_WAF_saturated(g_diff) << " diff " << g_diff);
+		// 	}
 	
-		}
+		// }
 
 		cur_page_offset = 0;
 		cur_state_index = 0;
@@ -908,7 +943,7 @@ namespace SSD_Components
 		{
 			PRINT_MESSAGE(Stats::GC_count << " New Victim: " << gc_candidate_block_id << "  stream : " <<victim_blocks[0]->Stream_id << "  valid : " << valid_page_count << " cur_token : " << token_per_write << " free blk : " << free_block_count << " c_token : " << token << " U: " << Stats::Utilization  << " W: " << WAF[(Stats::WAF_index-1) % 10]); 
 		}
-		std::cout << "vald pg cnt " << valid_page_count << std::endl; 
+		// std::cout << "vald pg cnt " << valid_page_count << std::endl; 
 		return valid_page_count;
 	}
 

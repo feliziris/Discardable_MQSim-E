@@ -348,7 +348,7 @@ namespace SSD_Components
 
 			
 		
-		std::cout << "flush_cnt: " << flush_unit_count << std::endl;
+		// std::cout << "flush_cnt: " << flush_unit_count << std::endl;
 		for (unsigned int domainID = 0; domainID < no_of_input_streams; domainID++) {
 			/* Since we want to have the same mapping table entry size for all streams, the entry size
 			*  is calculated at this level and then pass it to the constructors of mapping domains
@@ -471,6 +471,7 @@ namespace SSD_Components
 				allocate_page_in_plane_for_translation_write(dummy_tr, (MVPN_type)dummy_tr->LPA, false);
 				flash_controller->Change_flash_page_status_for_preconditioning(dummy_tr->Address, dummy_tr->LPA);
 			}
+			block_manager->debugging(); // hylee
 		}
 		
 		mapping_table_stored_on_flash = true;
@@ -526,7 +527,8 @@ namespace SSD_Components
 		int subpgs_hanged_w = 0;
 		// checking the possiblity of write request using token value.
 		std::list<NVM_Transaction*>::const_iterator it = transactionList.begin();
-		bool is_write = (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::WRITE) ? true : false;
+		bool is_write = (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::WRITE ? true : false);
+		// bool is_write = (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::WRITE || ((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::TRIM) ? true : false;
 
 		//if (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::WRITE) std::cout << transactionList.size() << std::endl;;
 		// js question: lock for gc가 없는데 그래도 괜찮은건가 => 확인 필요
@@ -550,13 +552,14 @@ namespace SSD_Components
 
 			if (try_query != true) {
 				//iterator should be post-incremented since the iterator may be deleted from list
+				std::cout << "nononoo" << std::endl;
 				manage_unsuccessful_write((NVM_Transaction_Flash*)*(it++));
 			}
 			else {
 				if (((NVM_Transaction_Flash*)(*it))->Type == Transaction_Type::READ && transactionList.size() > 4) {
 					//std::cout << "[read_ppa debug]" << std::endl;
 				}
-				std::cout << "lpn " << ((NVM_Transaction_Flash*)(*it))->LPA << std::endl;
+				// std::cout << "lpn " << ((NVM_Transaction_Flash*)(*it))->LPA << std::endl;
 				query_cmt((NVM_Transaction_Flash*)(*it++));
 			}
 
@@ -662,7 +665,8 @@ namespace SSD_Components
 				if (is_write == true) {
 					issue_count++;
 					if (issue_count == count) {
-						Stats::Host_write_count += issue_count;
+						// Stats::Host_write_count += issue_count;
+						// Stats::Physical_write_count += issue_count;
 						Stats::Host_write_count_subpgs += (issue_count + subpgs_hanged_w);
 						break;
 					}
@@ -707,6 +711,7 @@ namespace SSD_Components
 			if (translate_lpa_to_ppa(stream_id, transaction)) {
 				return true;
 			} else {
+				std::cout << "no!!!!" << std::endl;
 				mange_unsuccessful_translation(transaction);
 				return false;
 			}
@@ -776,7 +781,8 @@ namespace SSD_Components
 			
 			return true;
 		} else if (transaction->Type == Transaction_Type::WRITE) {//This is a write transaction	
-				
+			if (transaction->LPA == 25216)
+				std::cout << "." << std::endl;
 			allocate_plane_for_user_write((NVM_Transaction_Flash_WR*)transaction);
 #ifndef EXECUTION_CONTROL 
 			//there are too few free pages remaining only for GC
@@ -808,9 +814,11 @@ namespace SSD_Components
 				// std::cout << "[TRIM DEBUG] invalidate blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
 				block_manager->Invalidate_subpage_in_block(streamID, addr);
 				
-				block_manager->debugging(); // hylee
+				// block_manager->debugging(); // hylee
 				domain->Update_mapping_info(ideal_mapping_table, transaction->Stream_id, transaction->LPA, NO_PPA,
 					((NVM_Transaction_Flash_TR*)transaction)->write_sectors_bitmap & domain->Get_page_status(ideal_mapping_table, streamID, transaction->LPA));
+				
+				return true;
 			}
 		}
 #endif
@@ -1481,7 +1489,7 @@ namespace SSD_Components
 				//Static: Plane first
 			case Flash_Plane_Allocation_Scheme_Type::PCWD:
 				targetAddress.ChannelID = domain->Channel_ids[(unsigned int)((lpn / domain->Plane_no) % domain->Channel_no)];
-				PRINT_MESSAGE("lpn:" << lpn << " plane no " << domain->Plane_no << " Channel_no " << domain->Channel_no)
+				//PRINT_MESSAGE("lpn:" << lpn << " plane no " << domain->Plane_no << " Channel_no " << domain->Channel_no)
 				targetAddress.ChipID = domain->Chip_ids[(unsigned int)((lpn / (domain->Plane_no * domain->Channel_no)) % domain->Chip_no)];
 				targetAddress.DieID = domain->Die_ids[(unsigned int)((lpn / (domain->Plane_no * domain->Channel_no * domain->Chip_no)) % domain->Die_no)];
 				targetAddress.PlaneID = domain->Plane_ids[(unsigned int)(lpn % domain->Plane_no)];
@@ -1538,7 +1546,9 @@ namespace SSD_Components
 			if (is_for_gc) {
 				PRINT_ERROR("Unexpected mapping table status in allocate_page_in_plane_for_user_write function for a GC/WL write!")
 			}
+			//std::cout << "first" << std::endl;
 		} else {
+			// std::cout << "invalidate" << std::endl;
 			if (is_for_gc) {
 				NVM::FlashMemory::Physical_Page_Address addr;
 				Convert_ppa_to_address(old_ppa, addr);
@@ -1607,13 +1617,12 @@ namespace SSD_Components
 			
 		}
 		transaction->PPA = Convert_address_to_ppa(transaction->Address);
-#ifdef TMP
+#ifdef HYLEE
 		NVM::FlashMemory::Physical_Page_Address addr = transaction->Address;
-		std::cout << "before trim ppa: " << transaction->PPA << std::endl;
-		std::cout << "[TRIM DEBUG] first write blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
+		// std::cout << "[HYLEE DEBUG] write blk.pg.subpg: " << addr.ChannelID << ", " << addr.ChipID << ", " << addr.DieID << ", " << addr.PlaneID << ", " << addr.BlockID << ", pg" << addr.PageID << ", " << addr.subPageID <<  std::endl;
 #endif
-
-		block_manager->debugging();
+		assert(transaction->Stream_id == 0);
+		//block_manager->debugging();
 
 		domain->Update_mapping_info(ideal_mapping_table, transaction->Stream_id, transaction->LPA, transaction->PPA,
 			((NVM_Transaction_Flash_WR*)transaction)->write_sectors_bitmap | domain->Get_page_status(ideal_mapping_table, transaction->Stream_id, transaction->LPA));
@@ -2437,11 +2446,13 @@ namespace SSD_Components
 		do {		
 			issue_count = 0;
 			NVM::FlashMemory::Physical_Page_Address address;
+			if (_my_instance->Write_transactions_for_overfull.size())
+				std::cout << "." << std::endl;
 			if ((_my_instance->Write_transactions_for_overfull.size() >= _my_instance->flush_unit_count) &&
 #ifdef EXECUTION_CONTROL	
 				(_my_instance->ftl->GC_and_WL_Unit->Consume_token(_my_instance->flush_unit_count) == true)){
 #else 
-				(_my_instance->ftl->GC_and_WL_Unit->Stop_servicing_writes(address) == false)){
+				(_my_instance->ftl->GC_and_WL_Unit->Stop_servicing_writes(address) == false){
 #endif
 			     
 				service_writes_for_overfull_debug = true;

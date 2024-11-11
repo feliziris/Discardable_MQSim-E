@@ -36,14 +36,14 @@ namespace SSD_Components
 		}
 
 		gc_unit_count = channel_count * chip_no_per_channel * die_no_per_chip * plane_no_per_die;
-		
+		//std::cout << "gc unit cnt: " << gc_unit_count << std::endl;
 		victim_blocks = new Block_Pool_Slot_Type*[gc_unit_count];
 		gc_victim_address = new NVM::FlashMemory::Physical_Page_Address[gc_unit_count];
 
 		gc_pending_read_count = 0;
 		gc_pending_write_count = 0;
 		gc_pending_erase_count = 0;
-		
+		reclaimed_count = 0; // to set breakpoint for gc stop
 		cur_page_offset = 0;
 		cur_subpage_offset = 0;
 		new_victim_required = false;
@@ -159,6 +159,7 @@ namespace SSD_Components
 
 
 				_my_instance->gc_pending_read_count--;
+				std::cout << "gc read pending " << _my_instance->gc_pending_read_count << std::endl;
 				if (_my_instance->gc_pending_read_count == 0){
 					if (((NVM_Transaction_Flash_RD*)transaction)->RelatedRead_SUB.size() != 0) { 
 						PRINT_ERROR("gc_pending read count should not be 0 yet") 
@@ -240,6 +241,7 @@ namespace SSD_Components
 				if (((NVM_Transaction_Flash_WR*)transaction)->RelatedWrite_SUB.size() != 0) {
 					for (int idx = 0; idx < ((NVM_Transaction_Flash_WR*)transaction)->RelatedWrite_SUB.size(); idx++) {
 						_my_instance->gc_pending_write_count--;
+						std::cout << "gc write pending " << _my_instance->gc_pending_write_count << std::endl;
 						_my_instance->Check_gc_required(pbke->Get_free_block_pool_size(), ((NVM_Transaction_Flash_WR*)transaction)->RelatedWrite_SUB[idx]->Address);
 					}
 				}
@@ -255,6 +257,7 @@ namespace SSD_Components
 				break;
 			case Transaction_Type::ERASE:
 				_my_instance->gc_pending_erase_count--;
+				std::cout << "gc erase pending " << _my_instance->gc_pending_erase_count << std::endl;
 				if (_my_instance->gc_pending_erase_count == 0)
 				{
 					_my_instance->Check_gc_required(pbke->Get_free_block_pool_size(), transaction->Address);
@@ -324,7 +327,7 @@ namespace SSD_Components
 	bool GC_and_WL_Unit_Base::Consume_token(int token_count)
 	{
 		//js debug: fbm debugging
-		block_manager->debugging();
+		//block_manager->debugging();
 
 		// when the free block is enough - it always returns true.		
 		bool consume_token = true;
@@ -377,6 +380,7 @@ namespace SSD_Components
 
 		// js question : this check only one plane
 		//The block shouldn't have an ongoing program request (all pages must already be written)
+		std::cout << "check " << plane_record->Blocks[gc_wl_candidate_block_id].Ongoing_user_program_count << std::endl;
 		if (plane_record->Blocks[gc_wl_candidate_block_id].Ongoing_user_program_count > 0) {
 			//std::cout << "flag1: "<< plane_record->Blocks[gc_wl_candidate_block_id].Ongoing_user_program_count << std::endl;
 			return false;

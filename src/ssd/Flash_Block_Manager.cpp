@@ -52,14 +52,14 @@ namespace SSD_Components
 		page_address.BlockID = plane_record->Data_wf[stream_id]->BlockID;
 		block_id = page_address.BlockID;
 		//std::cout << "Current_subpage_write_index: " << plane_record->Data_wf[stream_id]->Current_subpage_write_index<< std::endl;
+
+		// std::cout << plane_record->Total_pages_count << " " << plane_record->Total_subpages_count << " " << plane_record->Free_pages_count << " " << plane_record->Free_subpages_count 
+		// 	<< " " << plane_record->Valid_pages_count << " " << plane_record->Valid_subpages_count << " " << plane_record->Invalid_pages_count << " " << plane_record->Invalid_subpages_count << std::endl;
 		page_address.subPageID = plane_record->Data_wf[stream_id]->Current_subpage_write_index++;
 		page_address.PageID = plane_record->Data_wf[stream_id]->Current_page_write_index;
 		//std::cout << "page_address.subPageID: " << page_address.subPageID << std::endl;
 		plane_record->Valid_subpages_count++;
 		plane_record->Free_subpages_count--;
-		// hylee
-		// std::cout << "data wf check " << plane_record->Data_wf[stream_id]->Current_subpage_write_index << std::endl;
-		// std::cout << "Blocks check " << plane_record->Blocks[block_id].Current_subpage_write_index << std::endl;
 
 		if (plane_record->Data_wf[stream_id]->Current_subpage_write_index == ALIGN_UNIT_SIZE) {
 			plane_record->Data_wf[stream_id]->Current_subpage_write_index = 0;
@@ -78,12 +78,11 @@ namespace SSD_Components
 		program_transaction_issued(page_address);
 
 		if(plane_record->Data_wf[stream_id]->Current_page_write_index == pages_no_per_block) {
-			plane_record->Data_wf[stream_id] = plane_record->Get_a_free_block(stream_id, false);
 #ifdef NO_CACHE
 			gc_and_wl_unit->Check_gc_required(plane_record->Get_free_block_pool_size(), page_address); // hylee) only cache turned off
 #endif
+			plane_record->Data_wf[stream_id] = plane_record->Get_a_free_block(stream_id, false);
 		}
-
 		plane_record->Check_bookkeeping_correctness(page_address);
 	}
 	
@@ -280,6 +279,8 @@ namespace SSD_Components
 		page_address.BlockID = plane_record->Translation_wf[streamID]->BlockID;
 		page_address.subPageID = plane_record->Translation_wf[streamID]->Current_subpage_write_index++;
 		page_address.PageID = plane_record->Translation_wf[streamID]->Current_page_write_index;
+		// std::cout << plane_record->Total_pages_count << " " << plane_record->Total_subpages_count << " " << plane_record->Free_pages_count << " " << plane_record->Free_subpages_count 
+		// 	<< " " << plane_record->Valid_pages_count << " " << plane_record->Valid_subpages_count << " " << plane_record->Invalid_pages_count << " " << plane_record->Invalid_subpages_count << std::endl;
 		plane_record->Valid_subpages_count++;
 		plane_record->Free_subpages_count--;
 		if (plane_record->Translation_wf[streamID]->Current_subpage_write_index == ALIGN_UNIT_SIZE) {
@@ -303,6 +304,8 @@ namespace SSD_Components
 			//	gc_and_wl_unit->Check_gc_required(plane_record->Get_free_block_pool_size(), page_address);
 			}
 		}
+		// std::cout << plane_record->Total_pages_count << " " << plane_record->Total_subpages_count << " " << plane_record->Free_pages_count << " " << plane_record->Free_subpages_count 
+		// 	<< " " << plane_record->Valid_pages_count << " " << plane_record->Valid_subpages_count << " " << plane_record->Invalid_pages_count << " " << plane_record->Invalid_subpages_count << std::endl;
 		plane_record->Check_bookkeeping_correctness(page_address);
 	}
 
@@ -311,7 +314,8 @@ namespace SSD_Components
 		PlaneBookKeepingType* plane_record = &plane_manager[page_address.ChannelID][page_address.ChipID][page_address.DieID][page_address.PlaneID];
 		plane_record->Invalid_subpages_count++;
 		plane_record->Valid_subpages_count--;
-		assert(plane_record->Valid_subpages_count > 1);
+		assert(plane_record->Valid_subpages_count > 0);
+		// assert(plane_record->Valid_subpages_count > 1);
 		// std::cout << "valid subpg cnt: " << plane_record->Valid_subpages_count << std::endl; // hylee
 
 		if (plane_record->Blocks[page_address.BlockID].Stream_id != stream_id) {
@@ -321,7 +325,9 @@ namespace SSD_Components
 
 		plane_record->Blocks[page_address.BlockID].Invalid_subpage_count++;
 		plane_record->Blocks[page_address.BlockID].Invalid_Subpage_bitmap[(page_address.PageID*ALIGN_UNIT_SIZE + page_address.subPageID) / 64] |= ((uint64_t)0x1) << (((page_address.PageID * ALIGN_UNIT_SIZE) + page_address.subPageID) % 64);
-
+		// if (plane_record->Blocks[page_address.BlockID].Invalid_subpage_count % 4 == 0)
+			// plane_record->Invalid_pages_count++;
+			// plane_record->Blocks[page_address.BlockID].Invalid_page_count++;
 	}
 
 	inline void Flash_Block_Manager::Invalidate_page_in_block(const stream_id_type stream_id, const NVM::FlashMemory::Physical_Page_Address& page_address)
